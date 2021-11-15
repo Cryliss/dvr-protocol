@@ -15,7 +15,7 @@
 
 
 # Messages
-Marshalling and unmarshalling the IP addresses needs to be redone ...
+marshaling and unmarshaling the IP addresses needs to be redone ...
 Current way  
 1. breaks if the length of the IP address changes
 2. marshals it into 12 bytes .. 3x larger than what it should be.

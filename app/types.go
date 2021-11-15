@@ -29,6 +29,7 @@ var commands = map[string]string{
 // Structure for our application that holds the availabe commands
 // and our host server
 type Application struct {
+    // The applicaton's server  
     server      types.Server
 
     // Map of the application commands, see above

@@ -7,6 +7,9 @@ import (
     "time"
 )
 
+// type Server struct {{{
+//
+// To store attributes related to our server
 type Server struct {
     // The ID of the server
     Id uint16
@@ -51,17 +54,40 @@ type Server struct {
 
     // Listener that will accept incoming messages on
     listener net.PacketConn
+
+    // Channel that will inform us if we need to stop sending update
+    // messages or not
+    bye chan struct{}
 } // }}}
 
+// type Typology struct {{{
+//
+// For details related to our network topology
 type Topology struct {
+    // Total number of servers in the topology network
     NumServers  int
+
+    // Number of neighbors the host server has
     NumNeighbors int
+
+    // Map of all the neighboring servers
     Neighbors   map[int]*Neighbor
+
+    // Routing table to hold all the servers link costs
     Routing     RoutingTable
+
+    // Locks reading on this struct, avoids data races!
+    mu sync.Mutex
 } // }}}
 
+// type RoutingTable
+//
+// To store the topology routing table
 type RoutingTable [][]int
 
+// type Neighbor struct {{{
+//
+// For details related to the servers neighbors
 type Neighbor struct {
     // The ID of the server, as a uint32 as that is the atomic
     // type we are using, and we're going to use this ID# to
@@ -71,5 +97,15 @@ type Neighbor struct {
     // The address we want to bind to & listen for packets on
     Bindy string
 
+    // The link cost between the neighbor and the host server
     Cost int
+
+    // The number of times we failed to send the routing update
+    failed int
+
+    // Last time this neighbor was updated
+    ts time.Time
+
+    // Locks reading on this struct, avoids data races!
+    mu sync.Mutex
 } // }}}

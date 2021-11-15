@@ -43,29 +43,42 @@ func main() {
 
     // Create a new server
     server := server.New(file, interval)
+
+    // Create a new application
     app := app.New(server)
+
+    // Pass the app to the server
     server.SetApplication(app)
 
-    t := server.Topology()
-    server.InitalizeRt()
-    server.Updates()
-    fmt.Println("\nTOPOLOGY\n")
-    fmt.Println("========\n")
-    fmt.Printf("Num Servers: %d\n", t.NumServers)
-    fmt.Printf("Num Neighbors: %d\n\n", t.NumNeighbors)
+    // Initialize the servers routing table
+    server.InitializeRoutingTable()
+
+    // Create a goroutine to start listening for new packets
+    go server.Listen()
+
+    // Create a goroutine for sending updates at the specified interval
+    go server.Loopy()
+
+    // Print the current topology setup
+    fmt.Println("\nTOPOLOGY")
+    fmt.Print("========")
+    server.Display()
+    /*fmt.Printf("Num Servers: %d\n", t.NumServers)
+    fmt.Printf("Num Neighbors: %d\n", t.NumNeighbors)
     fmt.Println("--------------\n")
 
     fmt.Printf("Server #%d: %v\n\n", server.Id, server.Bindy)
 
     for _, val := range t.Neighbors {
-        if val.Cost == -1 || val.Cost == 0 {
+        if val.Cost == 99999 || val.Cost == 0 {
             continue
         }
         fmt.Printf("Neighbor #%d: \nAddr: %v\nCost: %d\n\n", val.Id, val.Bindy, val.Cost)
-    }
+    }*/
     fmt.Println("======================\n")
     fmt.Printf("Starting the DVR protocol .. Now accepting user input.\n")
 
+    // Begin waiting for user input
     for {
         err := app.WaitForInput()
         if err != nil {

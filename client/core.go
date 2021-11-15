@@ -1,99 +1,67 @@
 package client
-/*
+
 import (
     "dvr-protocol/types"
-    "errors"
     "fmt"
+    "github.com/pkg/errors"
     "net"
-    "strings"
     "time"
 )
 
-// func New {{{
-//
-// Initializes and returns a new Client struct
-func New(conn *net.TCPConn, addr []string, id uint32, app types.Application) *Client {
-    client := Client{
-        app: app,
-        Id: id,
-        IP: addr[0],
-        Port: addr[1],
-        Conn: conn,
-    }
-    return &client
+// type Client struct {{{
+
+type Client struct {
+    Conn net.Conn
 } // }}}
 
-// func c.HandleClient {{{
+// func NewClient {{{
 //
-// Handler for client connections - reads from the connection and displays
-// the message to the user.
-// help src: https://ipfs.io/ipfs/QmfYeDhGH9bZzihBUDEQbCbTc5k5FZKURMUoUvfmc27BwL/socket/tcp_sockets.html
-func (c *Client) HandleClient() {
-    // Defer closing the client
-    defer c.Conn.Close()
+// Creates and returns a new client using the provided bind address
+func NewClient(address string, cost int) (*Client, error) {
+    var c Client
+    var err error
 
-    // Create a buffer for incoming messages
-    bufferSize := 1024
-    buffer := make([]byte, bufferSize)
-    for {
-        // Read the message from the connection -
-        n, err := c.Conn.Read(buffer)
-        if err != nil {
-            // Closed?
-            if errors.Is(err, net.ErrClosed) {
-                // We were told to shutdown, so just return.
-                // Some other goroutine logged the reason for the closure.
-                return
-            }
+    // Create a new net Dialer and set the timeout to be 10 seconds
+    // Timeout is max time allowed to wait for a dial to connect
+    //
+    // We're using a timeout so we don't completely break the program
+    // if we never get a new connection
+    duraton := fmt.Sprintf("%ds", cost)
+    timeout, _ := time.ParseDuration(duraton)
+    dialer := net.Dialer{ Timeout: timeout }
 
-            e := fmt.Sprintf("%v", err)
-
-            // EOF?
-            if e == "EOF" {
-                c.app.OutErr("\n\nPeer has terminated the connection - closing client# %d now.\n\nPlease enter a command: ", c.Id)
-            }
-            break
-        }
-
-        // We don't output empty messages, so check the length.
-        if n > 0 {
-            // Let's read the message from the buffer
-            msg := string(buffer[:n])
-
-            // I want to include the time received to the message output,
-            // so this creates the variables we need to do that.
-            now := time.Now()
-            now.Format(time.Stamp)
-            nowArr := strings.Split(now.String(), ".")
-            ts := nowArr[0]
-
-            // Print the message to the user
-            c.app.Out("\n\n====================================\nNEW MESSAGE FROM %v:%v\n\n", c.IP, c.Port)
-            c.app.Out("%s:\t%s\n\nEND MESSAGE\n===================================\n\nPlease enter a command: ", ts, msg)
-        }
-    }
-} // }}}
-
-// func c.closeConn {{{
-//
-// Handles closing connections, sending a message to the connection
-// prior to closing it. Returns any errors that may occur
-func (c *Client) CloseConn() error {
-    // Try closing the connection and handle any errors that may happen
-    err := c.Conn.Close()
+    // Dial the connection adddress to establish the connection.
+    c.Conn, err = dialer.Dial("udp", address)
     if err != nil {
-        // Closed?
-        if errors.Is(err, net.ErrClosed) {
-            // We already closed it, just return
-            return err
-        }
-        // Hmm, something else went wrong ..
-        c.app.OutErr("c.CloseConn: error closing connection!\n")
-        return err
+        e := errors.Wrapf(err, "NewClient(%s): failed to create connection to address", address)
+        return &c, e
     }
 
-    // Connction was successfully closed, let the user know and return
-    c.app.Out("Successfully closed connection %d\n", c.Id)
-    return nil
+    return &c, nil
 } // }}}
-*/
+
+// func c.SendPacket {{{
+//
+// Sends the provided packet to the client connection and then closes the connection
+func (c *Client) SendPacket(packet []byte, app types.Application) {
+    // Defer closing our client connection
+    defer c.close()
+
+    // Write the packet to the connection
+    _, err := c.Conn.Write(packet)
+    if err != nil {
+        // Some error occurred ..
+        // Create a new error message, print it to the user and return
+        e := errors.Wrapf(err, "failed to write update packet %+v", packet)
+        app.OutErr("%+v\n", e)
+    }
+} // }}}
+
+// func c.Close {{{
+//
+// Closes the UDP connection
+func (c *Client) close() {
+    if c.Conn != nil {
+        c.Conn.Close()
+    }
+} // }}}

@@ -1,23 +1,21 @@
 package server
 
 import (
-    "context"
+    "fmt"
     "log"
     "net"
     "time"
 )
 
-//https://ops.tips/blog/udp-client-and-server-in-go/
+// Code assistance: https://ops.tips/blog/udp-client-and-server-in-go/
 
-// maxBufferSize specifies the size of the buffers that
-// are used to temporarily hold data from the UDP packets
-// that we receive.
+// Define the max buffer size for the buffer to hold incoming packets
 const maxBufferSize = 1024
 
-// serve wraps all the UDP echo server functionality.
-// ps.: the server is capable of answering to a single
-// client at a time.
-func (s *Server) Listen(ctx context.Context) error {
+// func s.Listen {{{
+//
+// Creates a new packet listener and starts listening for new packets
+func (s *Server) Listen() error {
     var err error
 
     // Lets set our server listener by calling net.ListenPacket to specifically create a UDP packet listener.
@@ -27,6 +25,13 @@ func (s *Server) Listen(ctx context.Context) error {
         return nil
 	}
 
+    // Defer closing the listener
+    defer func() {
+        s.mu.Lock()
+        s.listener.Close()
+        s.mu.Unlock()
+    }()
+
     errChan := make(chan error, 1)
 	buffer := make([]byte, maxBufferSize)
 
@@ -34,19 +39,13 @@ func (s *Server) Listen(ctx context.Context) error {
 	// to be able of canceling such action if desired, we do that in a separate
 	// go routine.
 	go func() {
-        // Create a timeout duration
-        timeout, _ := time.ParseDuration("10s")
         for {
 			// By reading from the connection into the buffer, we block until there's
 			// new content in the socket that we're listening for new packets.
 			//
 			// Whenever new packets arrive, `buffer` gets filled and we can continue
 			// the execution.
-			//
-			// note.: `buffer` is not being reset between runs.
-			//	  It's expected that only `n` reads are read from it whenever
-			//	  inspecting its contents.
-			n, addr, err := s.listener.ReadFrom(buffer)
+			n, _, err := s.listener.ReadFrom(buffer)
 			if err != nil {
                 // An error occurred so let's send it to our
                 // error channel and return
@@ -54,46 +53,60 @@ func (s *Server) Listen(ctx context.Context) error {
 				return
 			}
 
-			s.app.Out("packet-received: bytes=%d from=%s\n", n, addr.String())
-
-            // Setting a deadline for the `write` operation allows us to not block
-			// for longer than a specific timeout.
-			//
-			// In the case of a write operation, that'd mean waiting for the send
-			// queue to be freed enough so that we are able to proceed.
-			deadline := time.Now().Add(timeout)
-			err = s.listener.SetWriteDeadline(deadline)
-			if err != nil {
-                // An error occurred so let's send it to our
-                // error channel and return
-				errChan <- err
-				return
-			}
-
-			// Write the packet's contents back to the client.
-			n, err = s.listener.WriteTo(buffer[:n], addr)
-			if err != nil {
-                // An error occurred so let's send it to our
-                // error channel and return
-				errChan <- err
-				return
-			}
-
-			s.app.Out("packet-written: bytes=%d to=%s\n", len(buffer), addr.String())
-            return
+            packet := buffer[:n]
+            go s.newPacket(packet)
 		}
 	}()
 
 	select {
-	case <-ctx.Done():
-        err = ctx.Err()
-        s.app.OutErr("error reading packet, connection closed.")
 	case err = <-errChan:
         if err != nil {
-            err = ctx.Err()
-            s.app.OutErr("error reading packet, connection closed.")
+            s.app.OutErr("\ns.Listen: error reading packet := %+v\n\nPlease enter a command: ", err)
+        }
+    case _, ok := <-s.bye:
+        if !ok {
+            s.app.OutErr("\ns.Listen: our bye channel was closed! The server must have crashed!\n\nPlease enter a command: ")
+            return nil
         }
 	}
 
 	return nil
-}
+} // }}}
+
+// func s.newPacket {{{
+//
+// Handles unmarshaling and dealing with the new packet received.
+func (s *Server) newPacket(packet []byte) {
+    var msg = &Message{}
+    if err := UnmarshalMessage(packet, msg); err != nil {
+        s.app.OutErr("\ns.newPacket(%+v): Error unmarshaling packet! err = %+v\n\nPlease enter a command: ", packet, err)
+        return
+    }
+
+    s.mu.Lock()
+    s.p++
+    s.mu.Unlock()
+
+    senderPort := fmt.Sprintf("%d",msg.hPort)
+    senderId := s.t.GetNeighborId(senderPort)
+
+    s.app.Out("\nRECEIVED A MESSAGE FROM SERVER %d\n\nPlease enter a command: ", senderId)
+    x := int(senderId)-1
+
+    s.t.mu.Lock()
+    rt := s.t.Routing
+    s.t.mu.Unlock()
+    for _, n := range msg.n {
+        rt[x][int(n.nID)-1] = int(n.nCost)
+        rt[int(n.nID)-1][x] = int(n.nCost)
+        if nb, ok := s.t.Neighbors[int(senderId)]; ok {
+            nb.mu.Lock()
+            nb.Cost = int(n.nCost)
+            nb.ts = time.Now()
+            nb.mu.Unlock()
+        }
+    }
+
+    s.updateRoutingTable(rt)
+
+} // }}}

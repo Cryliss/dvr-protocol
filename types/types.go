@@ -21,7 +21,7 @@ type Server interface {
     Update(id1, id2 uint16, newCost int) error
     Step() error
     Packets() error
-    RoutingTable() error
+    Display() error
     Disable(id uint16) error
-    Crash() error
+    Crash()
 }

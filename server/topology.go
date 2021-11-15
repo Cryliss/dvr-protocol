@@ -2,15 +2,19 @@ package server
 
 import (
     "bufio"
-    "errors"
     "fmt"
+    "github.com/pkg/errors"
     "log"
     "net"
     "os"
     "strconv"
     "strings"
+    "time"
 )
 
+// func ParseTopologyFile {{{
+//
+// Parses the provided topology file and returns the topology setup
 func ParseTopologyFile(file string) (*Topology, uint16, error) {
     var t Topology
     t.Neighbors = make(map[int]*Neighbor, 4)
@@ -55,14 +59,14 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
             text := scanner.Text()
             textArr := strings.Split(text, " ")
             if len(textArr) != 3 {
-                e := fmt.Sprintf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
+                return &t, sid, e
             }
 
             tid, err := strconv.Atoi(textArr[0])
             if err != nil {
-                e := fmt.Sprintf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
             }
             id := uint16(tid)
 
@@ -83,7 +87,8 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
             n := Neighbor{
                 Id: id,
                 Bindy: ip + ":" + port,
-                Cost: -1,
+                Cost: inf,
+                ts: time.Now(),
             }
 
             t.Neighbors[tid] = &n
@@ -93,28 +98,28 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
             text := scanner.Text()
             textArr := strings.Split(text, " ")
             if len(textArr) != 3 {
-                e := fmt.Sprintf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
+                return &t, sid, e
             }
 
             id1, err := strconv.Atoi(textArr[0])
             if err != nil {
-                e := fmt.Sprintf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
             }
 
             sid = uint16(id1)
 
             id2, err := strconv.Atoi(textArr[1])
             if err != nil {
-                e := fmt.Sprintf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
             }
 
             cost, err := strconv.Atoi(textArr[2])
             if err != nil {
-                e := fmt.Sprintf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
             }
 
             if _, ok := t.Neighbors[id2]; ok {
@@ -127,20 +132,20 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
             text := scanner.Text()
             textArr := strings.Split(text, " ")
             if len(textArr) != 3 {
-                e := fmt.Sprintf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
+                return &t, sid, e
             }
             // I could care less about the server id in textArr[0]
             id, err := strconv.Atoi(textArr[1])
             if err != nil {
-                e := fmt.Sprintf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
             }
 
             cost, err := strconv.Atoi(textArr[2])
             if err != nil {
-                e := fmt.Sprintf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-                return &t, sid, errors.New(e)
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
             }
 
             if _, ok := t.Neighbors[id]; ok {
@@ -173,4 +178,24 @@ func GetOutboundIP(port string) string {
     ip := fmt.Sprintf("%v", localAddr.IP)
     ipArr := strings.Split(ip, ":")
     return ipArr[0]
+} // }}}
+
+// func t.GetNeighborId {{{
+//
+// Returns the ID of the neighbor associated with the provided port
+func (t *Topology) GetNeighborId(port string) uint16 {
+    var id uint16
+    t.mu.Lock()
+    neighbors := t.Neighbors
+    t.mu.Unlock()
+
+    for _, n := range neighbors {
+        bindyarr := strings.Split(n.Bindy, ":")
+        p := bindyarr[1]
+        if p == port {
+            id = n.Id
+            break
+        }
+    }
+    return id
 } // }}}

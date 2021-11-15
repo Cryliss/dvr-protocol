@@ -1,139 +1,215 @@
 package server
 
 import (
-    "net"
+    "dvr-protocol/client"
     "strconv"
     "strings"
+    "time"
 
     "github.com/pkg/errors"
 )
 
-type Client struct {
-    conn net.Conn
-}
+// func s.Loopy {{{
+//
+// Function for sending the routing updates at the specified time interval
+func (s *Server) Loopy() error {
+    // Basic tracking ticker, set to tick at the same time interval
+    // as update interval
+	tick := time.NewTicker(s.upint)
+	defer tick.Stop()
 
-func NewClient(address string) (*Client, error) {
-    var c Client
-    var err error
-    raddr, err := net.ResolveUDPAddr("udp", address)
-    if err != nil {
-        e := errors.Wrapf(err, "NewClient(%s): failed to resolve UDP Address", address)
-        return &c, e
-    }
+    for {
+        select {
+        case <-tick.C:
+            s.app.Out("\ns.Loopy: Sending packet update now..\n")
+            // Time to send a new packet update; prepare the message packet
+            packet, err := s.preparePacket()
+            if err != nil {
+                s.app.OutErr("\ns.Loopy: failed to prepare packets for routing update! err = %+v\n\nPlease enter a command: ", err)
+            }
 
-    c.conn, err = net.DialUDP("udp", nil, raddr)
-    if err != nil {
-        e := errors.Wrapf(err, "NewClient(%s): failed to create connection to address", address)
-        return &c, e
-    }
+            // Send the update messages
+            if err := s.sendUpdates(packet); err != nil {
+                s.app.OutErr("\ns.Loopy: failed to send routing updates! err = 5+v\n\nPlease enter a command: ", err)
+            }
 
-    return &c, nil
-}
+            s.app.Out("\ns.Loopy: Successfully sent packets!\n\nPlease enter a command: ")
 
-func (c *Client) Close() {
-    if c.conn != nil {
-        c.conn.Close()
-    }
-}
+            now := time.Now()
+            threeUpdates := now.Add(-3*s.upint)
 
-func (s *Server) Updates() error {
+            s.t.mu.Lock()
+            for _, id := range s.ids {
+                if id == int(s.Id) {
+                    continue
+                }
+                n := s.t.Neighbors[id]
+                n.mu.Lock()
+                if n.ts.Before(threeUpdates) {
+                    s.app.Out("\nHaven't received an update from server (%d) in 3 intervals, disabling the link.\nPlease enter a command: ", n.Id)
+                    n.Cost = inf
+
+                    s.t.Routing[int(s.Id)-1][int(n.Id)-1] = inf
+                    s.t.Routing[int(n.Id)-1][int(s.Id)-1] = inf
+                }
+                n.mu.Unlock()
+            }
+            s.t.mu.Unlock()
+		case _, ok := <-s.bye:
+			if !ok {
+                e := errors.New("\ns.Loopy: our bye channel was closed! The server must have crashed!\n")
+				return e
+			}
+		}
+	}
+} // }}}
+
+// func s.preparePacket {{{
+//
+// Prepares the packet for the update messages
+func (s *Server) preparePacket() ([]byte, error) {
+    // Let's grab the ids of all the servers in the network
+    s.mu.Lock()
+    ids := s.ids
+    s.mu.Unlock()
+
+    // Let's grab the IP & port of the server from the bind address
     bindyarr := strings.Split(s.Bindy, ":")
+    ip := bindyarr[0]
     port, _ := strconv.Atoi(bindyarr[1])
 
+    // Create a new update message
     updateMsg := &Message{
         nUpdates: uint16(s.t.NumNeighbors+1),
         hPort: uint16(port),
-        hIP: bindyarr[0],
+        hIP: ip,
     }
 
-    s.mu.Lock()
-    neighbors := s.t.Neighbors
-    s.mu.Unlock()
-
+    // Create a new map for our update message neighbors to go into
     var un map[uint16]*mNeighbor
-    un = make(map[uint16]*mNeighbor)
+    un = make(map[uint16]*mNeighbor, s.t.NumNeighbors+1)
 
-    for _, n := range neighbors {
-        if n.Cost == -1 {
-            continue
-        }
-        bindyarr = strings.Split(n.Bindy, ":")
-        port, _ = strconv.Atoi(bindyarr[1])
+    // Create update neighbors for each neighbor our server has
+    // and one for our server itself.
+    for _, id := range ids {
+        // Try loading our connection from the sync map
+        _, ok := s.neighbors.Load(uint16(id))
 
-        updateNeighbor := &mNeighbor{
-            nIP: bindyarr[0],
-            nPort: uint16(port),
-            nID: n.Id,
-            nCost: uint16(n.Cost),
-        }
-        s.app.Out("Update neighbor: %+v\n", *updateNeighbor)
-        un[n.Id] = updateNeighbor
-    }
-    updateMsg.n = un
-
-    payload, err := updateMsg.Marshal()
-    if err != nil {
-        e := errors.Wrapf(err, "failed to marshal update message %+v", updateMsg)
-        return e
-    }
-
-    s.app.Out("Payload: %+v\n", payload)
-    s.app.Out("Update Message: %+v\n", updateMsg)
-
-    s.app.Out("Testing unmarshalling .. \n")
-    resp := &Message{}
-    UnmarshalMessage(payload, resp)
-    s.app.Out("Unmarshalled message: %+v\n", *resp)
-    return nil
-    //return s.SendUpdates(payload)
-}
-
-func (s *Server) SendUpdates(payload []byte) error {
-    s.mu.Lock()
-    neighbors := s.t.Neighbors
-    s.mu.Unlock()
-
-    for i := 0; i < s.t.NumServers; i++ {
-        n, ok := neighbors[i]
+        // Check if it was loaded or not - if it didin't its likely
+        // been deleted from the map so just continue
         if !ok {
             continue
         }
 
-        if n.Id == s.Id {
+        s.t.mu.Lock()
+        n := s.t.Neighbors[id]
+        s.t.mu.Unlock()
+
+        // Let's grab the IP & port from the bind address
+        bindyarr = strings.Split(n.Bindy, ":")
+        ip = bindyarr[0]
+        port, _ = strconv.Atoi(bindyarr[1])
+
+        // Create a new mNeighbor
+        updateNeighbor := &mNeighbor{
+            nIP: ip,
+            nPort: uint16(port),
+            nID: n.Id,
+            nCost: uint16(n.Cost),
+        }
+
+        // Uncomment this line to see how the update neighbor is formatted
+        //s.app.Out("Update neighbor: %+v\n", *updateNeighbor)
+
+        // Formatting looks like this --
+        // Update neighbor: {nIP:192.168.0.104 nPort:2000 nID:1 nCost:7}
+
+        // Add the neighbor to the update neighbor map
+        un[n.Id] = updateNeighbor
+    }
+
+    // Set the update message neighbors map equal to our update neighbor map
+    updateMsg.n = un
+
+    // Marshal the message into a packet to be sent
+    packet, err := updateMsg.Marshal()
+    if err != nil {
+        e := errors.Wrapf(err, "failed to marshal update message %+v", updateMsg)
+        return packet, e
+    }
+
+    //s.app.Out("Packet: %+v\n", packet)
+    //s.app.Out("Update Message: %+v\n", updateMsg)
+
+    return packet, nil
+} // }}}
+
+// func s.sendUpdates {{{
+//
+// Sends the packet update to each neighboring server
+func (s *Server) sendUpdates(packet []byte) error {
+    for i := 1; i <= s.t.NumServers; i++ {
+        // Is the id we're on our servers ID?
+        if i == int(s.Id) {
+            // Yep, let's keep going.
             continue
         }
 
-        c, err := NewClient(n.Bindy)
-        if err != nil {
-            return err
+        // Load our connection from the provided connection I
+        _, ok := s.neighbors.Load(uint16(i))
+
+        // Do we actually have a neighbor with that ID?
+        if !ok {
+            // Nope, let's keep going.
+            continue
         }
 
-        go func() {
-            defer c.Close()
+        s.t.mu.Lock()
+        n := s.t.Neighbors[i]
+        s.t.mu.Unlock()
 
-            _, err = c.conn.Write(payload)
-            if err != nil {
-                e := errors.Wrapf(err, "failed to write update message payload %+v", payload)
-                s.app.OutErr("%v", e)
-            }
+        // Is our link cost infinity?
+        if n.Cost == inf {
+            // Yep, don't try to send the packet
+            continue
+        }
 
-            s.app.Out("Update message sent to neighbor!")
+        // Create a new client connection and send the packet
+        c, err := client.NewClient(n.Bindy, n.Cost)
+        if err != nil {
+            return errors.Wrapf(err, "s.sendUpdates: failed to send updates to neighbor %d", n.Id)
+        }
 
-            buf := make([]byte, 1024)
-            _, err := c.conn.Read(buf)
-            if err != nil {
-                e := errors.Wrapf(err, "failed to read from client connection!")
-                s.app.OutErr("%v", e)
-            }
+        go c.SendPacket(packet, s.app)
 
-            resp := &Message{}
-            err = UnmarshalMessage(buf, resp)
-            if err != nil {
-                e := errors.Wrapf(err, "failed to unmarshal client message from connection")
-                s.app.OutErr("%v", e)
-            }
-            s.app.Out("MESSAGE: %+v\n", resp)
-        }()
+        /* Create a new net Dialer and set the timeout to be 10 seconds
+        // Timeout is max time allowed to wait for a dial to connect
+        //
+        // We're using a timeout so we don't completely break the program
+        // if we never get a new connection
+        duraton := fmt.Sprintf("%ds", n.Cost)
+        timeout, _ := time.ParseDuration(duraton)
+        deadline := time.Now().Add(timeout)
+
+        s.mu.Lock()
+        // Set a write deadline and send the packets contents
+        err := s.listener.SetWriteDeadline(deadline)
+        if err != nil {
+            return errors.Errorf("s.sendUpdates: failed to set write deadline. err := %+v", err)
+        }
+
+        // Get the net.UDPAddr for the neighbor
+        raddr, err := net.ResolveUDPAddr("udp", n.Bindy)
+        if err != nil {
+            return errors.Wrapf(err, "s.sendUpdates: error resolving udp add for server %d", i)
+        }
+
+        // Write the packet's contents to the neighboring server
+        _, err = s.listener.WriteTo(packet, raddr)
+        s.mu.Unlock()
+        if err != nil {
+            return errors.Wrapf(err, "s.sendUpdates: error sending routing update to server %d", i)
+        }*/
     }
     return nil
-}
+} // }}}

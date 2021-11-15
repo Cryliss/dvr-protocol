@@ -3,13 +3,15 @@ package app
 import (
     "bufio"
     "dvr-protocol/types"
+    "errors"
+    "fmt"
     "os"
     "strconv"
     "strings"
 )
 
 // func New {{{
-
+//
 // Returns a new app
 func New(s types.Server) *Application {
     a := Application{
@@ -24,7 +26,7 @@ func New(s types.Server) *Application {
 
 // func a.WaitForInput() {{{
 //
-// Waits for user input and handles the parses of it once received.
+// Waits for user input and handles parsing it once received.
 func (a *Application) WaitForInput() error {
     // Create a new bufio reader to read user input from the command line
     reader := bufio.NewReader(os.Stdin)
@@ -43,9 +45,7 @@ func (a *Application) WaitForInput() error {
         // Parse and handle the users input
         // If the request resulted in an error, let's let the user know
         err := a.parseInput(userInput)
-        if err != nil && err != UPDERR && err != DISERR && err != INPERR {
-            return err
-        } else if err != nil {
+        if err != nil {
             a.OutErr("%v\n",err)
         }
     }
@@ -97,15 +97,15 @@ func (a *Application) parseInput(userInput string) error {
         // Let's get the first ID# given
         id1, err := strconv.ParseInt(inputArgs[1], 10, 32)
         if err != nil {
-            a.OutErr("%s ERROR: error parsing input id1: %v\n", a.commands["2"], err)
-            return nil
+            e := fmt.Sprintf("%s ERROR: error parsing input id1: %v\n", a.commands["2"], err)
+            return errors.New(e)
         }
 
         // Let's get the second ID# given
         id2, err := strconv.ParseInt(inputArgs[2], 10, 32)
         if err != nil {
-            a.OutErr("%s ERROR: error parsing input id2: %v\n", a.commands["2"], err)
-            return nil
+            e := fmt.Sprintf("%s ERROR: error parsing input id2: %v\n", a.commands["2"], err)
+            return errors.New(e)
         }
 
         // Let's check if the link cost given was "inf"
@@ -116,14 +116,14 @@ func (a *Application) parseInput(userInput string) error {
         // Parse the link cost into an int
         cost, err := strconv.Atoi(inputArgs[3])
         if err != nil {
-            a.OutErr("%s ERROR: error parsing input cost: %v\n", a.commands["2"], err)
-            return nil
+            e := fmt.Sprintf("%s ERROR: error parsing input cost: %v\n", a.commands["2"], err)
+            return errors.New(e)
         }
 
         // Perform the update
         if err := a.server.Update(uint16(id1), uint16(id2), cost); err != nil {
-            a.OutErr("%s ERROR: %v\n", a.commands["2"], err)
-            return err
+            e := fmt.Sprintf("%s ERROR: %v\n", a.commands["2"], err)
+            return errors.New(e)
         }
         a.Out("%s SUCCESS\n", a.commands["2"])
         return nil
@@ -132,8 +132,8 @@ func (a *Application) parseInput(userInput string) error {
     case a.commands["3"]:
         // Call the servers step function and check for any errors
         if err := a.server.Step(); err != nil {
-            a.OutErr("%s ERROR: %v\n", a.commands["3"], err)
-            return nil
+            e := fmt.Sprintf("%s ERROR: %v\n", a.commands["3"], err)
+            return errors.New(e)
         }
         a.Out("%s SUCCESS\n", a.commands["3"])
         return nil
@@ -142,8 +142,8 @@ func (a *Application) parseInput(userInput string) error {
     case a.commands["4"]:
         // Call the servers packets function and check for any errors
         if err := a.server.Packets(); err != nil {
-            a.OutErr("%s ERROR: %v\n", a.commands["4"], err)
-            return nil
+            e := fmt.Sprintf("%s ERROR: %v\n", a.commands["4"], err)
+            return errors.New(e)
         }
         a.Out("%s SUCCESS\n", a.commands["4"])
         return nil
@@ -151,9 +151,9 @@ func (a *Application) parseInput(userInput string) error {
         fallthrough
     case a.commands["5"]:
         // Call the servers routing table function and check for any errors
-        if err := a.server.RoutingTable(); err != nil {
-            a.OutErr("%s ERROR: %v\n", a.commands["5"], err)
-            return nil
+        if err := a.server.Display(); err != nil {
+            e := fmt.Sprintf("%s ERROR: %v\n", a.commands["5"], err)
+            return errors.New(e)
         }
         a.Out("%s SUCCESS\n", a.commands["5"])
         return nil
@@ -171,19 +171,16 @@ func (a *Application) parseInput(userInput string) error {
 
         // Call the servers disable function and check for any errors
         if err := a.server.Disable(uint16(id)); err != nil {
-            a.OutErr("%s ERROR: %v\n", a.commands["6"], err)
-            return nil
+            e := fmt.Sprintf("%s ERROR: %v\n", a.commands["6"], err)
+            return errors.New(e)
         }
         a.Out("%s SUCCESS\n", a.commands["6"])
         return nil
     case "7":
         fallthrough
     case a.commands["7"]:
-        // Call the servers crash function and check for any errors
-        if err := a.server.Crash(); err != nil {
-            a.OutErr("%s ERROR: %v\n", a.commands["7"], err)
-            return nil
-        }
+        // Call the servers crash function and print the success message
+        a.server.Crash()
         a.Out("%s SUCCESS\n", a.commands["7"])
         return nil
     default:
