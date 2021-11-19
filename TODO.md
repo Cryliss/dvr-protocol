@@ -5,16 +5,18 @@
 
 ## /server
 - [x] parse topology file.
-- [ ] update: update the link cost between two *neighboring* servers.
-- [ ] step: send routing update to neighbors right away.
+- [x] update: update the link cost between two *neighboring* servers.
+    - [x] auto updates (`s.Loopy`)
+    - [x] command update
+- [x] step: send routing update to neighbors right away.
 - [x] packets: display the number of packets this server has received since this function was last called.
 - [x] display: displays the current routing table
 - [x] disable: disables the link to the given server, if it is its neighbor
-- [ ] crash: "close" all connections. meant to simulate server crashes. Neighboring servers must handle this close correctly and set the link cost to infinity
+- [x] crash: "close" all connections. meant to simulate server crashes. Neighboring servers must handle this close correctly and set the link cost to infinity
 
+Fix disabling links that haven't sent an update in 3 update intervals ...
 
-
-# Messages
+# Messages ✅
 marshaling and unmarshaling the IP addresses needs to be redone ...
 Current way  
 1. breaks if the length of the IP address changes

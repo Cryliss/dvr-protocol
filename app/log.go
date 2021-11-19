@@ -1,42 +1,36 @@
 package app
 
 import (
-    "fmt"
-    "os"
+	"fmt"
+	"os"
 )
 
-// func a.Out {{{
-//
-// Prints message to the standard output device
+// Out prints message to the standard output device
 func (a *Application) Out(format string, b ...interface{}) {
-    // We're we given any variables that should be added to the string?
-    if b == nil {
-        // No? Okay, let's not add them to Fprint, otherwise we get errors :D
-        fmt.Fprintf(os.Stdout, format)
-        return
-    }
-    fmt.Fprintf(os.Stdout, format, b...)
-} // }}}
+	// We're we given any variables that should be added to the string?
+	if b == nil {
+		// No? Okay, let's not add them to Fprint, otherwise we get errors :D
+		fmt.Fprintf(os.Stdout, format)
+		return
+	}
+	fmt.Fprintf(os.Stdout, format, b...)
+}
 
-// func a.OutErr {{{
-//
-// Prints message to the standard output error device
+// OutErr prints message to the standard output error device
 func (a *Application) OutErr(format string, b ...interface{}) {
-    // We're we given any variables that should be added to the string?
-    if b == nil {
-        // No? Okay, let's not add them to Fprint, otherwise we get errors :D
-        fmt.Fprintf(os.Stderr, format)
-        return
-    }
+	// We're we given any variables that should be added to the string?
+	if b == nil {
+		// No? Okay, let's not add them to Fprint, otherwise we get errors :D
+		fmt.Fprintf(os.Stderr, format)
+		return
+	}
 
-    fmt.Fprintf(os.Stderr, format, b...)
-} // }}}
+	fmt.Fprintf(os.Stderr, format, b...)
+}
 
-// func a.startupText {{{
-//
-// Prints the text that should be displayed on application startup
+// startupText prints the text that should be displayed on application startup
 func (a *Application) startupText() {
-    sText := `
+	sText := `
 DVR: Distance Vector Routing Protocol
 --------------------------------------
 A simplified version of the distance vector routing protocol.
@@ -56,5 +50,5 @@ Type 'help' for an explanation of each command or type 'help <command>' to get t
 
 Now beginning topology setup..
 `
-    a.Out("%s", sText)
-} // }}}
+	a.Out("%s", sText)
+}
