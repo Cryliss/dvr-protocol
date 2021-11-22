@@ -73,25 +73,34 @@ func (s *Server) Listen() error {
 
 // newPacket handles unmarshaling and dealing with the new packet received.
 func (s *Server) newPacket(packet []byte) {
+	// Create a new message and try to unmarshal the packet into it
 	var msg = &Message{}
 	if err := UnmarshalMessage(packet, msg); err != nil {
 		s.app.OutErr("\ns.newPacket(%+v): Error unmarshaling packet! err = %+v\n\nPlease enter a command: ", packet, err)
 		return
 	}
 
+	// Incrememnt the number of packets received.
 	s.mu.Lock()
 	s.p++
 	s.mu.Unlock()
 
+	// Retrieve the sender ID & Port #
 	senderPort := fmt.Sprintf("%d", msg.hPort)
 	senderId := s.t.GetNeighborId(senderPort)
 
+	// Let the user know we just got a new packet
 	s.app.Out("\nRECEIVED A MESSAGE FROM SERVER %d\n\nPlease enter a command: ", senderId)
+
+	// Create an index into our routing table (IDs start at 1, but we're zero indexed..)
 	x := int(senderId) - 1
 
 	s.t.mu.Lock()
 	rt := s.t.Routing
 	s.t.mu.Unlock()
+
+	// Loop through each of our message neighbors and update the routing table
+	// for the neighbor and the neighbor link costs accordingly.
 	for _, n := range msg.n {
 		rt[x][int(n.nID)-1] = int(n.nCost)
 		rt[int(n.nID)-1][x] = int(n.nCost)
@@ -103,5 +112,6 @@ func (s *Server) newPacket(packet []byte) {
 		}
 	}
 
+	// Update the rest of the routing table
 	s.updateRoutingTable(rt)
 }

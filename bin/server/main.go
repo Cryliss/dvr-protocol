@@ -58,18 +58,6 @@ func main() {
 	app.OutCyan("\nTOPOLOGY\n")
 	app.OutCyan("========\n")
 	server.Display()
-	/*fmt.Printf("Num Servers: %d\n", t.NumServers)
-	  fmt.Printf("Num Neighbors: %d\n", t.NumNeighbors)
-	  fmt.Println("--------------\n")
-
-	  fmt.Printf("Server #%d: %v\n\n", server.Id, server.Bindy)
-
-	  for _, val := range t.Neighbors {
-	      if val.Cost == 99999 || val.Cost == 0 {
-	          continue
-	      }
-	      fmt.Printf("Neighbor #%d: \nAddr: %v\nCost: %d\n\n", val.Id, val.Bindy, val.Cost)
-	  }*/
 	app.OutCyan("======================\n")
 	app.OutCyan("Starting the DVR protocol ..\n\nNow accepting user input.\n")
 

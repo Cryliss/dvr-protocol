@@ -46,7 +46,9 @@ func New(file string, interval int) *Server {
 // initializeNeighbors initializes the neighbors sync map
 func (s *Server) initializeNeighbors() {
 	for _, n := range s.t.Neighbors {
+		// Is this neighbor ourself?
 		if n.Id == s.Id {
+			// Yep, set our servers bind address and set this neighbors cost to 0
 			s.Bindy = n.Bindy
 			n.Cost = 0
 		}
@@ -83,6 +85,7 @@ func (s *Server) Update(id1, id2 uint16, newCost int) error {
 			return errors.Errorf("s.Update(%d, %d): error updating link, link id not found.", id1, id2)
 		}
 
+		// Safely retrieve our neighbor from the neighbors map
 		s.t.mu.Lock()
 		n := s.t.Neighbors[int(id2)]
 		s.t.mu.Unlock()
@@ -105,6 +108,7 @@ func (s *Server) Update(id1, id2 uint16, newCost int) error {
 			return errors.Errorf("s.Update(%d, %d): error updating link, link id not found.", id1, id2)
 		}
 
+		// Safely retrieve our neighbor from the neighbors map
 		s.t.mu.Lock()
 		n := s.t.Neighbors[int(id1)]
 		s.t.mu.Unlock()
@@ -127,7 +131,10 @@ func (s *Server) Update(id1, id2 uint16, newCost int) error {
 	rt := s.t.Routing
 	s.t.mu.Unlock()
 
+	// Update the routing table
 	s.updateRoutingTable(rt)
+
+	// Send an update to our neighbors
 	s.Step()
 
 	return nil
@@ -209,13 +216,14 @@ func (s *Server) Disable(id uint16) error {
 		return errors.Errorf("s.Disable(%d): error disabling link, link id not found", id)
 	}
 
+	// Safely retrieve our neighbor from the neighbors map & update the routing table
 	s.t.mu.Lock()
 	n := s.t.Neighbors[int(id)]
 	s.t.Routing[int(s.Id)-1][int(n.Id)-1] = inf
 	s.t.Routing[int(id)-1][int(s.Id)-1] = inf
 	s.t.mu.Unlock()
 
-	// Set the link cost to infinity (-1) to indicate its been disabled
+	// Set the link cost to infinity and set disabled
 	n.mu.Lock()
 	n.disabled = true
 	n.Cost = inf

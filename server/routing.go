@@ -45,7 +45,9 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 
 	for y := 0; y < s.t.NumServers; y++ {
 		for v := 1; v < s.t.NumServers; v++ {
-			//fmt.Printf("rt[x][y]: %d, rt[y][y]: %d, rt[x][v]: %d, rt[v][y]: %d\n", rt[x][y], rt[y][y], rt[x][v], rt[v][y])
+			// 34463 is some number I kept getting during testing that would
+			// break other conditions checks cos that's not equal to inf lol
+			// so this is to avoid that .. :D
 			if rt[x][y] == int(34463) {
 				rt[x][y] = inf
 				rt[y][x] = inf
@@ -61,11 +63,14 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 				rt[v][y] = inf
 				rt[y][v] = inf
 			}
-			cxy := rt[x][y]
-			dyy := rt[y][y]
 
-			cxv := rt[x][v]
-			dvy := rt[v][y]
+			// Bellman-Ford Equation:
+			// Dx(y) = min {cost(x,y)+Dy(y), cost(x,v)+Dv(y)}
+			cxy := rt[x][y] // cost(x,y)
+			dyy := rt[y][y] // Dy(y)
+
+			cxv := rt[x][v] // cost(x,v)
+			dvy := rt[v][y] // Dv(y)
 
 			minf := math.Min(float64(cxy+dyy), float64(cxv+dvy))
 			min := int(minf)
@@ -78,7 +83,8 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 			}
 			rt[x][y] = min
 		}
-
+		// Since we've checked all the neighbors, v, we can go ahead and
+		// update our neighbors link cost now.
 		s.t.mu.Lock()
 		n := s.t.Neighbors[y+1]
 		s.t.mu.Unlock()
@@ -90,10 +96,12 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 		n.mu.Unlock()
 	}
 
+	// Update our routing table to reflect the changes
 	s.t.mu.Lock()
 	s.t.Routing = rt
 	s.t.mu.Unlock()
 
+	// Print the new routing table for debugging.
 	s.app.OutCyan("\nNew Routing Table:\n%+v\n", rt)
 	s.app.Out("\nPlease enter a command: ")
 	return nil

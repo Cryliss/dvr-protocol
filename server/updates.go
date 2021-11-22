@@ -19,24 +19,31 @@ func (s *Server) Loopy() error {
 	for {
 		select {
 		case <-tick.C:
+			// Log the auto packet update
 			s.app.OutCyan("\ns.Loopy: Sending packet update now..\n")
 			s.app.Out("\nPlease enter a command: ")
+
 			// Time to send a new packet update; prepare the message packet
 			packet, err := s.preparePacket()
 			if err != nil {
 				s.app.OutErr("\ns.Loopy: failed to prepare packets for routing update! err = %+v\n", err)
 				s.app.Out("\nPlease enter a command: ")
+				continue
 			}
 
 			// Send the update messages
 			if err := s.sendUpdates(packet); err != nil {
 				s.app.OutErr("\ns.Loopy: failed to send routing updates! err = 5+v\n", err)
 				s.app.Out("\nPlease enter a command: ")
+				continue
 			}
 
+			// Log the suuccess of the update
 			s.app.OutCyan("\ns.Loopy: Successfully sent packets!\n")
 			s.app.Out("\nPlease enter a command: ")
 
+			// Check to see if we've gotten an update within the last 3
+			// update intervals for each neighbor
 			now := time.Now()
 			threeUpdates := now.Add(-3 * s.upint)
 
@@ -53,11 +60,14 @@ func (s *Server) Loopy() error {
 				if ts.Before(threeUpdates) {
 					s.app.OutErr("\nHaven't received an update from server (%d) in 3 intervals, disabling the link.\n", n.Id)
 					s.app.Out("\nPlease enter a command: ")
+
+					// Safely disable our neighbor
 					n.mu.Lock()
 					n.disabled = true
 					n.Cost = inf
 					n.mu.Unlock()
 
+					// Update our routing table entries
 					s.t.Routing[int(s.Id)-1][int(id)-1] = inf
 					for i := 0; i < s.t.NumServers; i++ {
 						s.t.Routing[int(id)-1][i] = inf
@@ -255,38 +265,6 @@ func (s *Server) sendDisableUpdate(packet []byte) error {
 		}
 
 		go c.SendPacket(packet, s.app)
-
-		// Code to use the server to send messages .. not sure which I'm supposed
-		// to do, but I could see this causing some locking issues
-
-		/* Create a new net Dialer and set the timeout to be 10 seconds
-		   // Timeout is max time allowed to wait for a dial to connect
-		   //
-		   // We're using a timeout so we don't completely break the program
-		   // if we never get a new connection
-		   duraton := fmt.Sprintf("%ds", n.Cost)
-		   timeout, _ := time.ParseDuration(duraton)
-		   deadline := time.Now().Add(timeout)
-
-		   s.mu.Lock()
-		   // Set a write deadline and send the packets contents
-		   err := s.listener.SetWriteDeadline(deadline)
-		   if err != nil {
-		       return errors.Errorf("s.sendUpdates: failed to set write deadline. err := %+v", err)
-		   }
-
-		   // Get the net.UDPAddr for the neighbor
-		   raddr, err := net.ResolveUDPAddr("udp", n.Bindy)
-		   if err != nil {
-		       return errors.Wrapf(err, "s.sendUpdates: error resolving udp add for server %d", i)
-		   }
-
-		   // Write the packet's contents to the neighboring server
-		   _, err = s.listener.WriteTo(packet, raddr)
-		   s.mu.Unlock()
-		   if err != nil {
-		       return errors.Wrapf(err, "s.sendUpdates: error sending routing update to server %d", i)
-		   }*/
 	}
 	return nil
 }
