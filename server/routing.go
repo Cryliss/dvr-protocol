@@ -94,6 +94,7 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 	s.t.Routing = rt
 	s.t.mu.Unlock()
 
-	s.app.OutCyan("\nNew Routing Table:\n%+v\n\nPlease enter a command: ", rt)
+	s.app.OutCyan("\nNew Routing Table:\n%+v\n", rt)
+	s.app.Out("\nPlease enter a command: ")
 	return nil
 }
