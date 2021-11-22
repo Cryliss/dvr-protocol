@@ -55,8 +55,8 @@ func main() {
 	go server.Loopy()
 
 	// Print the current topology setup
-	fmt.Println("\nTOPOLOGY")
-	fmt.Print("========")
+	app.OutCyan("\nTOPOLOGY\n")
+	app.OutCyan("========\n")
 	server.Display()
 	/*fmt.Printf("Num Servers: %d\n", t.NumServers)
 	  fmt.Printf("Num Neighbors: %d\n", t.NumNeighbors)
@@ -70,8 +70,8 @@ func main() {
 	      }
 	      fmt.Printf("Neighbor #%d: \nAddr: %v\nCost: %d\n\n", val.Id, val.Bindy, val.Cost)
 	  }*/
-	fmt.Println("======================\n")
-	fmt.Printf("Starting the DVR protocol .. Now accepting user input.\n")
+	app.OutCyan("======================\n")
+	app.OutCyan("Starting the DVR protocol ..\n\nNow accepting user input.\n")
 
 	// Begin waiting for user input
 	for {

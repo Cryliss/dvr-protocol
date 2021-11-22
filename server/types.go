@@ -95,6 +95,9 @@ type Neighbor struct {
 	// The number of times we failed to send the routing update
 	failed int
 
+	// Whether or not this link is disabled
+	disabled bool
+
 	// Last time this neighbor was updated
 	ts time.Time
 

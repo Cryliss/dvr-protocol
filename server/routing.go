@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -35,7 +34,7 @@ func (s *Server) InitializeRoutingTable() error {
 		}
 		rt = append(rt, yRt)
 	}
-	fmt.Printf("\nInitialized routing table:\n%+v\n", rt)
+	s.app.OutCyan("\nInitialized routing table:\n%+v\n", rt)
 	s.t.Routing = rt
 	return nil
 }
@@ -85,7 +84,9 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 		s.t.mu.Unlock()
 
 		n.mu.Lock()
-		n.Cost = rt[x][y]
+		if !n.disabled {
+			n.Cost = rt[x][y]
+		}
 		n.mu.Unlock()
 	}
 
@@ -93,6 +94,6 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 	s.t.Routing = rt
 	s.t.mu.Unlock()
 
-	fmt.Printf("\nNew Routing Table:\n%+v\n\nPlease enter a command: ", rt)
+	s.app.OutCyan("\nNew Routing Table:\n%+v\n\nPlease enter a command: ", rt)
 	return nil
 }

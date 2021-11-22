@@ -19,19 +19,23 @@ func (s *Server) Loopy() error {
 	for {
 		select {
 		case <-tick.C:
-			s.app.Out("\ns.Loopy: Sending packet update now..\n")
+			s.app.OutCyan("\ns.Loopy: Sending packet update now..\n")
+			s.app.Out("\nPlease enter a command: ")
 			// Time to send a new packet update; prepare the message packet
 			packet, err := s.preparePacket()
 			if err != nil {
-				s.app.OutErr("\ns.Loopy: failed to prepare packets for routing update! err = %+v\n\nPlease enter a command: ", err)
+				s.app.OutErr("\ns.Loopy: failed to prepare packets for routing update! err = %+v\n", err)
+				s.app.Out("\nPlease enter a command: ")
 			}
 
 			// Send the update messages
 			if err := s.sendUpdates(packet); err != nil {
-				s.app.OutErr("\ns.Loopy: failed to send routing updates! err = 5+v\n\nPlease enter a command: ", err)
+				s.app.OutErr("\ns.Loopy: failed to send routing updates! err = 5+v\n", err)
+				s.app.Out("\nPlease enter a command: ")
 			}
 
-			s.app.Out("\ns.Loopy: Successfully sent packets!\n\nPlease enter a command: ")
+			s.app.OutCyan("\ns.Loopy: Successfully sent packets!\n")
+			s.app.Out("\nPlease enter a command: ")
 
 			now := time.Now()
 			threeUpdates := now.Add(-3 * s.upint)
@@ -47,7 +51,12 @@ func (s *Server) Loopy() error {
 				id := n.Id
 				n.mu.Unlock()
 				if ts.Before(threeUpdates) {
-					s.app.Out("\nHaven't received an update from server (%d) in 3 intervals, disabling the link.\nPlease enter a command: ", n.Id)
+					s.app.OutErr("\nHaven't received an update from server (%d) in 3 intervals, disabling the link.\n", n.Id)
+					s.app.Out("\nPlease enter a command: ")
+					n.mu.Lock()
+					n.disabled = true
+					n.Cost = inf
+					n.mu.Unlock()
 
 					s.t.Routing[int(s.Id)-1][int(id)-1] = inf
 					for i := 0; i < s.t.NumServers; i++ {

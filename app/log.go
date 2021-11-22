@@ -3,29 +3,32 @@ package app
 import (
 	"fmt"
 	"os"
+
+	"github.com/fatih/color"
 )
 
 // Out prints message to the standard output device
 func (a *Application) Out(format string, b ...interface{}) {
-	// We're we given any variables that should be added to the string?
-	if b == nil {
-		// No? Okay, let's not add them to Fprint, otherwise we get errors :D
-		fmt.Fprintf(os.Stdout, format)
-		return
-	}
-	fmt.Fprintf(os.Stdout, format, b...)
+	// Create a green colored message using the given arguments
+	msg := color.HiGreenString(format, b...)
+	// Print the message to the user
+	fmt.Fprintf(os.Stdout, msg)
+}
+
+// OutCyan prints message to the standard output device in cyan
+func (a *Application) OutCyan(format string, b ...interface{}) {
+	// Create a green colored message using the given arguments
+	msg := color.HiCyanString(format, b...)
+	// Print the message to the user
+	fmt.Fprintf(os.Stdout, msg)
 }
 
 // OutErr prints message to the standard output error device
 func (a *Application) OutErr(format string, b ...interface{}) {
-	// We're we given any variables that should be added to the string?
-	if b == nil {
-		// No? Okay, let's not add them to Fprint, otherwise we get errors :D
-		fmt.Fprintf(os.Stderr, format)
-		return
-	}
-
-	fmt.Fprintf(os.Stderr, format, b...)
+	// Create a green colored message using the given arguments
+	msg := color.HiRedString(format, b...)
+	// Print the message to the user
+	fmt.Fprintf(os.Stdout, msg)
 }
 
 // startupText prints the text that should be displayed on application startup

@@ -157,14 +157,14 @@ func (s *Server) Packets() error {
 	s.p = 0
 	s.mu.Unlock()
 
-	s.app.Out("Number of packets received since last call %d\n", packets)
+	s.app.OutCyan("Number of packets received since last call %d\n", packets)
 	return nil
 }
 
 // Display displays the current routing table.
 func (s *Server) Display() error {
-	s.app.Out("\nsrc id | next hop id | link cost\n")
-	s.app.Out("-------+-------------+-----------\n")
+	s.app.OutCyan("\nsrc id | next hop id | link cost\n")
+	s.app.OutCyan("-------+-------------+-----------\n")
 
 	// Let's grab the ids the server currently has
 	s.mu.Lock()
@@ -192,7 +192,7 @@ func (s *Server) Display() error {
 			continue
 		}
 
-		s.app.Out("   %d   |      %d      |    %d \n", sid, n.Id, n.Cost)
+		s.app.OutCyan("   %d   |      %d      |    %d \n", sid, n.Id, n.Cost)
 	}
 	s.app.Out("\n")
 
@@ -212,13 +212,12 @@ func (s *Server) Disable(id uint16) error {
 	s.t.mu.Lock()
 	n := s.t.Neighbors[int(id)]
 	s.t.Routing[int(s.Id)-1][int(n.Id)-1] = inf
-	for i := 0; i < s.t.NumServers; i++ {
-		s.t.Routing[int(id)-1][i] = inf
-	}
+	s.t.Routing[int(id)-1][int(s.Id)-1] = inf
 	s.t.mu.Unlock()
 
 	// Set the link cost to infinity (-1) to indicate its been disabled
 	n.mu.Lock()
+	n.disabled = true
 	n.Cost = inf
 	n.mu.Unlock()
 
