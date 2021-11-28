@@ -16,7 +16,7 @@ func (s *Server) InitializeRoutingTable() error {
 		var yRt []int
 		for w := 1; w <= s.t.NumServers; w++ {
 			// Is id # y = to our servers id?
-			if y == int(s.Id) {
+			if y == int(s.ID) {
 				// Nope, is the neighbor id we're looking at one of our neighbors?
 				if n, ok := neighbors[w]; ok {
 					// Yep, set the routing table cost equal to our neighbors cost
@@ -41,7 +41,7 @@ func (s *Server) InitializeRoutingTable() error {
 
 // updateRoutingTable updates the servers routing table.
 func (s *Server) updateRoutingTable(rt RoutingTable) error {
-	x := int(s.Id) - 1
+	x := int(s.ID) - 1
 
 	for y := 0; y < s.t.NumServers; y++ {
 		for v := 1; v < s.t.NumServers; v++ {

@@ -10,7 +10,7 @@ import (
 // Server To store attributes related to our server
 type Server struct {
 	// The ID of the server
-	Id uint16
+	ID uint16
 
 	// The address we want to bind to & listen for packets on
 	Bindy string
@@ -44,11 +44,6 @@ type Server struct {
 
 	// Locks reading on this struct, avoids data races!
 	mu sync.Mutex
-
-	// The next availabe connection ID
-	//
-	// Only access this using atomics!
-	nextID uint16
 
 	// Listener that will accept incoming messages on
 	listener net.PacketConn
@@ -84,7 +79,7 @@ type Neighbor struct {
 	// The ID of the server, as a uint32 as that is the atomic
 	// type we are using, and we're going to use this ID# to
 	// load the neighbor from the sync.Map in the server.
-	Id uint16
+	ID uint16
 
 	// The address we want to bind to & listen for packets on
 	Bindy string

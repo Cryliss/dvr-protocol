@@ -84,7 +84,7 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
 			ip := GetOutboundIP(port)
 
 			n := Neighbor{
-				Id:    id,
+				ID:    id,
 				Bindy: ip + ":" + port,
 				Cost:  inf,
 				ts:    time.Now(),
@@ -177,8 +177,8 @@ func GetOutboundIP(port string) string {
 	return ipArr[0]
 }
 
-// GetNeighborId returns the ID of the neighbor associated with the provided port
-func (t *Topology) GetNeighborId(port string) uint16 {
+// GetNeighborID returns the ID of the neighbor associated with the provided port
+func (t *Topology) GetNeighborID(port string) uint16 {
 	var id uint16
 	t.mu.Lock()
 	neighbors := t.Neighbors
@@ -188,7 +188,7 @@ func (t *Topology) GetNeighborId(port string) uint16 {
 		bindyarr := strings.Split(n.Bindy, ":")
 		p := bindyarr[1]
 		if p == port {
-			id = n.Id
+			id = n.ID
 			break
 		}
 	}

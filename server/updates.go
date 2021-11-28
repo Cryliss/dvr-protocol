@@ -49,16 +49,16 @@ func (s *Server) Loopy() error {
 
 			s.t.mu.Lock()
 			for _, id := range s.ids {
-				if id == int(s.Id) {
+				if id == int(s.ID) {
 					continue
 				}
 				n := s.t.Neighbors[id]
 				n.mu.Lock()
 				ts := n.ts
-				id := n.Id
+				id := n.ID
 				n.mu.Unlock()
 				if ts.Before(threeUpdates) {
-					s.app.OutErr("\nHaven't received an update from server (%d) in 3 intervals, disabling the link.\n", n.Id)
+					s.app.OutErr("\nHaven't received an update from server (%d) in 3 intervals, disabling the link.\n", n.ID)
 					s.app.Out("\nPlease enter a command: ")
 
 					// Safely disable our neighbor
@@ -68,7 +68,7 @@ func (s *Server) Loopy() error {
 					n.mu.Unlock()
 
 					// Update our routing table entries
-					s.t.Routing[int(s.Id)-1][int(id)-1] = inf
+					s.t.Routing[int(s.ID)-1][int(id)-1] = inf
 					for i := 0; i < s.t.NumServers; i++ {
 						s.t.Routing[int(id)-1][i] = inf
 					}
@@ -132,7 +132,7 @@ func (s *Server) preparePacket() ([]byte, error) {
 		updateNeighbor := &mNeighbor{
 			nIP:   ip,
 			nPort: uint16(port),
-			nID:   n.Id,
+			nID:   n.ID,
 			nCost: uint16(n.Cost),
 		}
 
@@ -143,7 +143,7 @@ func (s *Server) preparePacket() ([]byte, error) {
 		// Update neighbor: {nIP:192.168.0.104 nPort:2000 nID:1 nCost:7}
 
 		// Add the neighbor to the update neighbor map
-		un[n.Id] = updateNeighbor
+		un[n.ID] = updateNeighbor
 	}
 
 	// Set the update message neighbors map equal to our update neighbor map
@@ -166,7 +166,7 @@ func (s *Server) preparePacket() ([]byte, error) {
 func (s *Server) sendUpdates(packet []byte) error {
 	for i := 1; i <= s.t.NumServers; i++ {
 		// Is the id we're on our servers ID?
-		if i == int(s.Id) {
+		if i == int(s.ID) {
 			// Yep, let's keep going.
 			continue
 		}
@@ -196,7 +196,7 @@ func (s *Server) sendUpdates(packet []byte) error {
 		c, err := client.NewClient(n.Bindy, n.Cost)
 		n.mu.Unlock()
 		if err != nil {
-			return errors.Wrapf(err, "s.sendUpdates: failed to send updates to neighbor %d", n.Id)
+			return errors.Wrapf(err, "s.sendUpdates: failed to send updates to neighbor %d", n.ID)
 		}
 
 		go c.SendPacket(packet, s.app)
@@ -240,7 +240,7 @@ func (s *Server) sendUpdates(packet []byte) error {
 func (s *Server) sendDisableUpdate(packet []byte) error {
 	for i := 1; i <= s.t.NumServers; i++ {
 		// Is the id we're on our servers ID?
-		if i == int(s.Id) {
+		if i == int(s.ID) {
 			// Yep, let's keep going.
 			continue
 		}
@@ -261,7 +261,7 @@ func (s *Server) sendDisableUpdate(packet []byte) error {
 		// Create a new client connection and send the packet
 		c, err := client.NewClient(n.Bindy, n.Cost)
 		if err != nil {
-			return errors.Wrapf(err, "s.sendUpdates: failed to send updates to neighbor %d", n.Id)
+			return errors.Wrapf(err, "s.sendUpdates: failed to send updates to neighbor %d", n.ID)
 		}
 
 		go c.SendPacket(packet, s.app)

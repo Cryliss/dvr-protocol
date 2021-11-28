@@ -87,13 +87,13 @@ func (s *Server) newPacket(packet []byte) {
 
 	// Retrieve the sender ID & Port #
 	senderPort := fmt.Sprintf("%d", msg.hPort)
-	senderId := s.t.GetNeighborId(senderPort)
+	senderID := s.t.GetNeighborID(senderPort)
 
 	// Let the user know we just got a new packet
-	s.app.Out("\nRECEIVED A MESSAGE FROM SERVER %d\n\nPlease enter a command: ", senderId)
+	s.app.Out("\nRECEIVED A MESSAGE FROM SERVER %d\n\nPlease enter a command: ", senderID)
 
 	// Create an index into our routing table (IDs start at 1, but we're zero indexed..)
-	x := int(senderId) - 1
+	x := int(senderID) - 1
 
 	s.t.mu.Lock()
 	rt := s.t.Routing
@@ -104,7 +104,7 @@ func (s *Server) newPacket(packet []byte) {
 	for _, n := range msg.n {
 		rt[x][int(n.nID)-1] = int(n.nCost)
 		rt[int(n.nID)-1][x] = int(n.nCost)
-		if nb, ok := s.t.Neighbors[int(senderId)]; ok {
+		if nb, ok := s.t.Neighbors[int(senderID)]; ok {
 			nb.mu.Lock()
 			nb.Cost = int(n.nCost)
 			nb.ts = time.Now()

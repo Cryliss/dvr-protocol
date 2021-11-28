@@ -24,7 +24,7 @@ func New(file string, interval int) *Server {
 
 	// Create a new server
 	s := &Server{
-		Id:  id,
+		ID:  id,
 		t:   t,
 		bye: make(chan struct{}, 0),
 	}
@@ -47,15 +47,15 @@ func New(file string, interval int) *Server {
 func (s *Server) initializeNeighbors() {
 	for _, n := range s.t.Neighbors {
 		// Is this neighbor ourself?
-		if n.Id == s.Id {
+		if n.ID == s.ID {
 			// Yep, set our servers bind address and set this neighbors cost to 0
 			s.Bindy = n.Bindy
 			n.Cost = 0
 		}
 
 		// Add the new neighbor to our sync map
-		s.neighbors.Store(n.Id, n)
-		s.ids = append(s.ids, int(n.Id))
+		s.neighbors.Store(n.ID, n)
+		s.ids = append(s.ids, int(n.ID))
 	}
 
 	// Sort the array of ids.
@@ -75,7 +75,7 @@ func (s *Server) Topology() *Topology {
 
 // Update sets the link cost between two neighbors to the given cost
 func (s *Server) Update(id1, id2 uint16, newCost int) error {
-	if s.Id == id1 {
+	if s.ID == id1 {
 		// Try loading our connection from the sync map
 		_, ok := s.neighbors.Load(id2)
 
@@ -98,7 +98,7 @@ func (s *Server) Update(id1, id2 uint16, newCost int) error {
 		}
 		n.Cost = newCost
 		n.mu.Unlock()
-	} else if s.Id == id2 {
+	} else if s.ID == id2 {
 		// Try loading our connection from the sync map
 		_, ok := s.neighbors.Load(id1)
 
@@ -133,9 +133,6 @@ func (s *Server) Update(id1, id2 uint16, newCost int) error {
 
 	// Update the routing table
 	s.updateRoutingTable(rt)
-
-	// Send an update to our neighbors
-	s.Step()
 
 	return nil
 }
@@ -176,7 +173,7 @@ func (s *Server) Display() error {
 	// Let's grab the ids the server currently has
 	s.mu.Lock()
 	ids := s.ids
-	sid := s.Id
+	sid := s.ID
 	s.mu.Unlock()
 
 	// Range over our array of ids and print them.
@@ -199,7 +196,7 @@ func (s *Server) Display() error {
 			continue
 		}
 
-		s.app.OutCyan("   %d   |      %d      |    %d \n", sid, n.Id, n.Cost)
+		s.app.OutCyan("   %d   |      %d      |    %d \n", sid, n.ID, n.Cost)
 	}
 	s.app.Out("\n")
 
@@ -219,8 +216,7 @@ func (s *Server) Disable(id uint16) error {
 	// Safely retrieve our neighbor from the neighbors map & update the routing table
 	s.t.mu.Lock()
 	n := s.t.Neighbors[int(id)]
-	s.t.Routing[int(s.Id)-1][int(n.Id)-1] = inf
-	s.t.Routing[int(id)-1][int(s.Id)-1] = inf
+	rt := s.t.Routing
 	s.t.mu.Unlock()
 
 	// Set the link cost to infinity and set disabled
@@ -229,16 +225,10 @@ func (s *Server) Disable(id uint16) error {
 	n.Cost = inf
 	n.mu.Unlock()
 
-	// Prepare the message packet
-	packet, err := s.preparePacket()
-	if err != nil {
-		return errors.Errorf("s.Step: failed to send prepare packet for update: %+v", err)
-	}
-
-	// Send the update messages
-	if err := s.sendDisableUpdate(packet); err != nil {
-		return errors.Errorf("s.Step: failed to send packet update: %+v", err)
-	}
+	// Update the routing table
+	rt[int(s.ID)-1][int(n.ID)-1] = inf
+	rt[int(id)-1][int(s.ID)-1] = inf
+	s.updateRoutingTable(rt)
 
 	return nil
 }
