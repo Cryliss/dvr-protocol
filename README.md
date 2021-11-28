@@ -3,6 +3,23 @@ COMP 429 Programming Assignment #2 - Distance Vector Routing Protocol
 
 Solo Project by Sabra Bilodeau
 
+# Installation 
+To install the application -
+
+1. Download the source code.
+2. From the main `dvr-protocol` directory in terminal, run `make build`
+
+# Usage
+To run the application, open 4 separate terminals.  
+
+In terminal 1 use: `./dvr-protocol -t /path/to/your/topology1.txt -i 60`
+
+In terminal 2 use: `./dvr-protocol -t /path/to/your/topology2.txt -i 60`
+
+In terminal 3 use: `./dvr-protocol -t /path/to/your/topology3.txt -i 60`
+
+In terminal 4 use: `./dvr-protocol -t /path/to/your/topology4.txt -i 60`
+
 # Assignment Details
 In this assignment you will implement a simplified version of the *Distance Vector Routing Protocol*.  
 
