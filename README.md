@@ -1,6 +1,7 @@
 # dvr-protocol
- Repository for COMP 429 Programming Assignment#2 - Distance Vector Routing Protocols
+COMP 429 Programming Assignment #2 - Distance Vector Routing Protocol
 
+Solo Project by Sabra Bilodeau
 
 # Assignment Details
 In this assignment you will implement a simplified version of the *Distance Vector Routing Protocol*.  
