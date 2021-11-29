@@ -12,3 +12,7 @@
 *.out
 
 bin/server/server
+
+dvr-protocol
+
+*.DS_Store
