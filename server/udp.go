@@ -103,11 +103,13 @@ func (s *Server) newPacket(packet []byte) {
 	// for the neighbor and the neighbor link costs accordingly.
 	for _, n := range msg.n {
 		rt[x][int(n.nID)-1] = int(n.nCost)
-		rt[int(n.nID)-1][x] = int(n.nCost)
 		if nb, ok := s.t.Neighbors[int(senderID)]; ok {
 			nb.mu.Lock()
 			nb.Cost = int(n.nCost)
 			nb.ts = time.Now()
+			if !nb.disabled {
+				rt[int(n.nID)-1][x] = int(n.nCost)
+			}
 			nb.mu.Unlock()
 		}
 	}

@@ -56,8 +56,9 @@ func (s *Server) Loopy() error {
 				n.mu.Lock()
 				ts := n.ts
 				id := n.ID
+				disabled := n.disabled
 				n.mu.Unlock()
-				if ts.Before(threeUpdates) {
+				if ts.Before(threeUpdates) && !disabled {
 					s.app.OutErr("\nHaven't received an update from server (%d) in 3 intervals, disabling the link.\n", n.ID)
 					s.app.Out("\nPlease enter a command: ")
 
