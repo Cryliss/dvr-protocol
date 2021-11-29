@@ -34,7 +34,11 @@ func (s *Server) InitializeRoutingTable() error {
 		}
 		rt = append(rt, yRt)
 	}
-	s.app.OutCyan("\nInitialized routing table:\n%+v\n", rt)
+
+	s.app.OutCyan("\nInitialized routing table:\n")
+	for _, r := range rt {
+		s.app.OutCyan("%+v\n",r)
+	}
 	s.t.Routing = rt
 	return nil
 }
@@ -42,6 +46,9 @@ func (s *Server) InitializeRoutingTable() error {
 // updateRoutingTable updates the servers routing table.
 func (s *Server) updateRoutingTable(rt RoutingTable) error {
 	x := int(s.ID) - 1
+	s.t.mu.Lock()
+	neighbors := s.t.Neighbors
+	s.t.mu.Unlock()
 
 	for y := 0; y < s.t.NumServers; y++ {
 		for v := 1; v < s.t.NumServers; v++ {
@@ -81,15 +88,20 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 			if rt[x][y] < min {
 				continue
 			}
-			rt[x][y] = min
+
+			n := neighbors[y+1]
+			n.mu.Lock()
+			// Let's make sure our link isn't disabled before we update the cost.
+			if !n.disabled {
+				rt[x][y] = min
+			}
+			n.mu.Unlock()
 		}
 		// Since we've checked all the neighbors, v, we can go ahead and
 		// update our neighbors link cost now.
-		s.t.mu.Lock()
-		n := s.t.Neighbors[y+1]
-		s.t.mu.Unlock()
-
+		n := neighbors[y+1]
 		n.mu.Lock()
+		// Let's make sure our link isn't disabled before we update the cost.
 		if !n.disabled {
 			n.Cost = rt[x][y]
 		}
@@ -102,7 +114,10 @@ func (s *Server) updateRoutingTable(rt RoutingTable) error {
 	s.t.mu.Unlock()
 
 	// Print the new routing table for debugging.
-	s.app.OutCyan("\nNew Routing Table:\n%+v\n", rt)
+	s.app.OutCyan("\nNew Routing Table:\n")
+	for _, r := range rt {
+		s.app.OutCyan("%+v\n",r)
+	}
 	s.app.Out("\nPlease enter a command: ")
 	return nil
 }
