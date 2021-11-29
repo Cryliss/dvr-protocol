@@ -156,6 +156,6 @@ The following are a list of possible responses a user can receive from a server:
 
 - [x] On successful execution of an update, step, packets, display or disable command, the server must display the following message: `<command-string> SUCCESS` where command-string is the command executed.
 
-- [x] Upon encountering an error during execution of one of these commands, the server must display the following response: `<command-string> <error message> ` where error message is a brief description of the error encountered.
+- [x] Upon encountering an error during execution of one of these commands, the server must display the following response: `<command-string> <error message>` where error message is a brief description of the error encountered.
 
 - [x] On successfully receiving a route update message from neighbors, the server must display the following response: `RECEIVED A MESSAGE FROM SERVER <server-ID>` where the server-ID is the id of the server which sent a route update message to the local server.
