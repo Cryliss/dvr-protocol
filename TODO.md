@@ -30,3 +30,11 @@ Then convert those into strings and combine into one string with "." separating 
 
 Cause the IP address should have four parts  
 And each value as an integer should fit into a byte and we're allowed 4 bytes ..  
+
+
+
+# Update command
+When I use the command `update 3 4 1` on server 1, the change does not remain.  
+But, when I use `update 3 4 1` on server 3 or 4, the change does remain & the link cost to server 2 is updated accordingly ..
+
+is that how it should work?
