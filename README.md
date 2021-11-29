@@ -38,7 +38,7 @@ The entries of a topology file are listed below:
 For cost values, each topology file should only contain the cost values of the host server’s neighbors.  
 
 ### IMPORTANT
-In this environment, costs are bi-directional i.e. the cost of a link from A-B is the same for B-A.  
+In this environment, *costs are bi-directional* i.e. the cost of a link from A-B is the same for B-A.  
 Whenever a new server is added to the network, it will read its topology file to determine who are its neighbors.  
 
 Routing updates are exchanged periodically between neighboring servers.  
@@ -99,13 +99,13 @@ For example:
 - `update 1 2 inf`: The link between the servers with IDs 1 and 2 is assigned to infinity.   
 - `update 1 2 8`: Change the cost of the link to 8.  
 
-2. `step`  
+- [x] `step`  
 Send routing update to neighbors right away.
 
-3. `packets`  
+- [x] `packets`  
 Display the number of packets this server has received since the last invocation of this command.
 
-4. `display`  
+- [x] `display`  
 Display the current routing table
 
 The table should be displayed in a **sorted** order from small ID to big ID.  
@@ -122,16 +122,16 @@ The neighboring servers must handle this close correctly and set the link cost t
 # Server Responses / Output Format
 The following are a list of possible responses a user can receive from a server:
 
-1. On successful execution of an update, step, packets, display or disable command, the server must display the following message:
+- [x] On successful execution of an update, step, packets, display or disable command, the server must display the following message:
     `<command-string> SUCCESS`  
 
 where command-string is the command executed.
 
-2. Upon encountering an error during execution of one of these commands, the server must display the following response:  
+- [x] Upon encountering an error during execution of one of these commands, the server must display the following response:  
     `<command-string> <error message> `
 where error message is a brief description of the error encountered.
 
-3. On successfully receiving a route update message from neighbors, the server must display the following response:  
+- [x] On successfully receiving a route update message from neighbors, the server must display the following response:  
 
     `RECEIVED A MESSAGE FROM SERVER <server-ID>`  
 Where the server-ID is the id of the server which sent a route update message to the local server.
