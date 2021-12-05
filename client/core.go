@@ -1,8 +1,7 @@
 package client
 
 import (
-	"dvr-protocol/types"
-	"fmt"
+	"dvr/log"
 	"net"
 	"time"
 
@@ -15,7 +14,7 @@ type Client struct {
 }
 
 // NewClient creates and returns a new client using the provided bind address
-func NewClient(address string, cost int) (*Client, error) {
+func NewClient(address string) (*Client, error) {
 	var c Client
 	var err error
 
@@ -24,7 +23,7 @@ func NewClient(address string, cost int) (*Client, error) {
 	//
 	// We're using a timeout so we don't completely break the program
 	// if we never get a new connection
-	duraton := fmt.Sprintf("%ds", cost)
+	duraton := "10s"
 	timeout, _ := time.ParseDuration(duraton)
 	dialer := net.Dialer{Timeout: timeout}
 
@@ -39,7 +38,7 @@ func NewClient(address string, cost int) (*Client, error) {
 }
 
 // SendPacket sends the provided packet to the client connection and then closes the connection
-func (c *Client) SendPacket(packet []byte, app types.Application) {
+func (c *Client) SendPacket(packet []byte, log *log.Logger) {
 	// Defer closing our client connection
 	defer c.close()
 
@@ -48,12 +47,12 @@ func (c *Client) SendPacket(packet []byte, app types.Application) {
 	if err != nil {
 		// Some error occurred ..
 		// Create a new error message, print it to the user and return
-		e := errors.Wrapf(err, "failed to write update packet %+v", packet)
-		app.OutErr("%+v\n", e)
+		e := errors.Wrapf(err, "c.SendPacket: failed to write update packet %+v", packet)
+		log.OutError("%+v\n", e)
 	}
 }
 
-// Close closes the UDP connection
+// close closes the UDP connection
 func (c *Client) close() {
 	if c.Conn != nil {
 		c.Conn.Close()

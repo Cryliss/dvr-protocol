@@ -7,18 +7,18 @@ Solo Project by Sabra Bilodeau
 To install the application -
 
 1. Download the source code.
-2. From the main `dvr-protocol` directory in terminal, run `make build`
+2. From the main `dvr` directory in terminal, run `make build`
 
 # Usage
 To run the application, open 4 separate terminals.  
 
-In terminal 1 use: `./dvr-protocol -t /path/to/your/topology1.txt -i 60`
+In terminal 1 use: `./dvr -t /path/to/your/topology1.txt -i 60`
 
-In terminal 2 use: `./dvr-protocol -t /path/to/your/topology2.txt -i 60`
+In terminal 2 use: `./dvr -t /path/to/your/topology2.txt -i 60`
 
-In terminal 3 use: `./dvr-protocol -t /path/to/your/topology3.txt -i 60`
+In terminal 3 use: `./dvr -t /path/to/your/topology3.txt -i 60`
 
-In terminal 4 use: `./dvr-protocol -t /path/to/your/topology4.txt -i 60`
+In terminal 4 use: `./dvr -t /path/to/your/topology4.txt -i 60`
 
 # Assignment Details
 In this assignment you will implement a simplified version of the *Distance Vector Routing Protocol*.  
@@ -40,7 +40,7 @@ Please *strictly adhere* to the specifications.
 
 ## Topology Establishment
 The four servers are required to form a network topology.  
-![Figure 1: Example Topology](https://github.com/Cryliss/dvr-protocol/blob/main/docs/Figure-1-Example-Topology.png)
+![Figure 1: Example Topology](https://github.com/Cryliss/dvrprotocol/blob/main/docs/Figure-1-Example-Topology.png)
 
 Each server is supplied with a topology file at startup that it uses to build its initial routing table.  
 The topology file is local and contains the link cost to the neighbors (all other servers will be infinity).  
@@ -54,6 +54,7 @@ The entries of a topology file are listed below:
 - `<server-ID1> <server-ID2> <cost>`
 
 **num-servers**: total number of servers.  
+**num-neighbors**: total number of neighbors this server has.  
 **server-ID**, **server-ID1**, **server-ID2**: a unique identifier for a server, which is assigned by you.  
 **cost**: cost of a given link between a pair of servers. Assume that cost is an integer value.  
 
@@ -107,7 +108,7 @@ Second, the packet needs to include an entry to reach itself with cost 0
 
 # Server Commands / Input Format
 
-## Startup
+## Startup ✅
 The server must support the following command at startup:
 `server -t <topology-file-name> -i <routing-update-interval>`
 
@@ -128,20 +129,20 @@ The following commands can be specified at any point during the run of the serve
      - `update 1 2 inf`: The link between the servers with IDs 1 and 2 is assigned to infinity.   
      - `update 1 2 8`: Change the cost of the link to 8.  
 
-### `step`  
+### `step` ✅
 Send routing update to neighbors right away.
 
-### `packets`  
+### `packets` ✅  
 Display the number of packets this server has received since the last invocation of this command.
 
-### `display`  
+### `display` ✅  
 Display the current routing table
 
 The table should be displayed in a **sorted** order from small ID to big ID.  
 The display should be formatted as a sequence of lines, with each line indicating:  
 `<source-server-ID> <next-hop-server-ID> <cost-of-path>`  
 
-### `disable<server-ID>`    
+### `disable <server-ID>`    
 Disable the link to a given server.  
 Doing this “closes” the connection to a given server with server-ID.  
 *Here you need to check if the given server is its neighbor*.  

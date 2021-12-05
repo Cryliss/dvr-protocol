@@ -1,4 +1,4 @@
-package server
+package message
 
 import (
 	"bytes"
@@ -48,19 +48,19 @@ import (
 // With a minimum of 1 expected neighbors, the minimum size of the message
 // is expected to be 8 + 12 = 20 bytes
 type Message struct {
-	nUpdates uint16                // Number of expected fields
-	hPort    uint16                // Port of the host server sending the msg
-	hIP      string                // IP of the host server sending the msg
-	n        map[uint16]*mNeighbor // Map of the neighbor information in the hosts routng table
+	Updates uint16                // Number of expected fields
+	Port    uint16                // Port of the host server sending the msg
+	IP      string                // IP of the host server sending the msg
+	N       map[uint16]*Neighbor  // Map of the neighbor information in the hosts routng table
 }
 
-// mNeighbor To store the information about the host servers neighbors
+// Neighbor To store the information about the host servers neighbors
 // Total size of each neighbors info is 12 bytes with null byte
-type mNeighbor struct {
-	nIP   string // Neighbor IP
-	nPort uint16 // Neighbor Port
-	nID   uint16 // Neighbor ID
-	nCost uint16 // Neighbor Link cost
+type Neighbor struct {
+	IP   string // Neighbor IP
+	Port uint16 // Neighbor Port
+	ID   uint16 // Neighbor ID
+	Cost uint16 // Neighbor Link cost
 }
 
 // UnmarshalMessage unmarshals an update message into a message struct
@@ -74,8 +74,8 @@ type mNeighbor struct {
 //  {nIP:192.168.200.80 nPort:2002 nID:3 nCost:2}
 func UnmarshalMessage(msg []byte, m *Message) error {
 	// Create a new map for the unmarshalled neighbors
-	var neighbors map[uint16]*mNeighbor
-	neighbors = make(map[uint16]*mNeighbor, 4)
+	var neighbors map[uint16]*Neighbor
+	neighbors = make(map[uint16]*Neighbor, 4)
 
 	// Did we actually get a message struct?
 	if m == nil {
@@ -92,25 +92,25 @@ func UnmarshalMessage(msg []byte, m *Message) error {
 	//
 	// As this comes from the network in UDP packets we can assume that it comes
 	// in BigEndian (network byte order).
-	m.nUpdates = uint16(msg[1]) | uint16(msg[0])<<8
-	m.hPort = uint16(msg[3]) | uint16(msg[2])<<8
-	m.hIP = fmt.Sprintf("%d.%d.%d.%d\n", msg[4], msg[5], msg[6], msg[7])
+	m.Updates = uint16(msg[1]) | uint16(msg[0])<<8
+	m.Port = uint16(msg[3]) | uint16(msg[2])<<8
+	m.IP = fmt.Sprintf("%d.%d.%d.%d\n", msg[4], msg[5], msg[6], msg[7])
 
 	// Loop through the rest of the bytes in the messae and unmarshal each
 	// set of 12 bytes into a new message struct into a new neighbor struct
 	for b := 8; b <= len(msg)-12; b += 12 {
-		var n mNeighbor
+		var n Neighbor
 
-		n.nIP = fmt.Sprintf("%d.%d.%d.%d\n", msg[b], msg[b+1], msg[b+2], msg[b+3])
-		n.nPort = uint16(msg[b+5]) | uint16(msg[b+4])<<8
-		n.nID = uint16(msg[b+9]) | uint16(msg[b+8])<<8
-		n.nCost = uint16(msg[b+11]) | uint16(msg[b+10])<<8
+		n.IP = fmt.Sprintf("%d.%d.%d.%d\n", msg[b], msg[b+1], msg[b+2], msg[b+3])
+		n.Port = uint16(msg[b+5]) | uint16(msg[b+4])<<8
+		n.ID = uint16(msg[b+9]) | uint16(msg[b+8])<<8
+		n.Cost = uint16(msg[b+11]) | uint16(msg[b+10])<<8
 
-		neighbors[n.nID] = &n
+		neighbors[n.ID] = &n
 	}
 
 	// Set the message neighbors map to be the neighbors map we just initialized
-	m.n = neighbors
+	m.N = neighbors
 	return nil
 }
 
@@ -121,11 +121,11 @@ func (m *Message) Marshal() ([]byte, error) {
 
 	// Write the number of updates and the host port number
 	// into the buffer, encoded as binary using Big Endian
-	binary.Write(buf, binary.BigEndian, m.nUpdates)
-	binary.Write(buf, binary.BigEndian, m.hPort)
+	binary.Write(buf, binary.BigEndian, m.Updates)
+	binary.Write(buf, binary.BigEndian, m.Port)
 
 	// Split up the IP address
-	iparr := strings.Split(m.hIP, ".")
+	iparr := strings.Split(m.IP, ".")
 
 	// Create new 8 bit unsigned integer for each part of the IP address
 	ip064, _ := strconv.ParseUint(iparr[0], 10, 8)
@@ -144,9 +144,9 @@ func (m *Message) Marshal() ([]byte, error) {
 	buf.WriteByte(ip3)
 
 	// For each neighbor in our message -
-	for _, n := range m.n {
+	for _, n := range m.N {
 		// Split up the neighbors IP address
-		iparr := strings.Split(n.nIP, ".")
+		iparr := strings.Split(n.IP, ".")
 
 		// Create new 8 bit unsigned integer for each part of the IP address
 		ip064, _ := strconv.ParseUint(iparr[0], 10, 8)
@@ -166,7 +166,7 @@ func (m *Message) Marshal() ([]byte, error) {
 
 		// Write the neighbors port number into the buffer,
 		// encoded as binary using Big Endian
-		binary.Write(buf, binary.BigEndian, n.nPort)
+		binary.Write(buf, binary.BigEndian, n.Port)
 
 		// Write two null bytes
 		buf.WriteByte(0)
@@ -174,8 +174,8 @@ func (m *Message) Marshal() ([]byte, error) {
 
 		// Write the neighbors id number and link cost into the buffer,
 		// encoded as binary using Big Endian
-		binary.Write(buf, binary.BigEndian, n.nID)
-		binary.Write(buf, binary.BigEndian, n.nCost)
+		binary.Write(buf, binary.BigEndian, n.ID)
+		binary.Write(buf, binary.BigEndian, n.Cost)
 	}
 
 	// Return the bytes writen to the buffer

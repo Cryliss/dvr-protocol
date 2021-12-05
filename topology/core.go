@@ -1,22 +1,23 @@
-package server
+// Package topology provides functionality for parsing topology files
+package topology
 
 import (
-	"bufio"
-	"fmt"
-	"log"
-	"net"
-	"os"
-	"strconv"
-	"strings"
-	"time"
+    "bufio"
+    "fmt"
+    "log"
+    "net"
+    "os"
+    "strconv"
+    "strings"
 
-	"github.com/pkg/errors"
+    "github.com/pkg/errors"
 )
+var inf int = 99999
 
-// ParseTopologyFile parses the provided topology file and returns the topology setup
-func ParseTopologyFile(file string) (*Topology, uint16, error) {
+// ParseTopology parses the provided topology file and returns the topology setup
+func ParseTopology(file string) (*Topology, uint16, error) {
 	var t Topology
-	t.Neighbors = make(map[int]*Neighbor, 4)
+	t.Servers = make(map[int]*Server, 4)
 
 	var sid uint16
 
@@ -69,7 +70,12 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
 			}
 			id := uint16(tid)
 
-			port := textArr[2]
+            portS := textArr[2]
+			port, err := strconv.Atoi(portS)
+            if err != nil {
+				e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in port field of line %d", line)
+				return &t, sid, e
+			}
 			/* Project specification part 3.1 Topology Establishment
 			   "The host server here is the one which will read this topology file).
 			   Note: the IPs of servers may change when you are running the
@@ -81,16 +87,18 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
 			   do that at all. If this this is the first server (i.e. host),
 			   then let's set the ip to the outbound ip of the machine
 			*/
-			ip := GetOutboundIP(port)
+			ip := GetOutboundIP(portS)
 
-			n := Neighbor{
+			n := Server{
 				ID:    id,
-				Bindy: ip + ":" + port,
+                IP:    ip,
+                Port:  port,
+				Bindy: ip + ":" + portS,
 				Cost:  inf,
-				ts:    time.Now(),
+                Neighbor: false,
 			}
 
-			t.Neighbors[tid] = &n
+			t.Servers[tid] = &n
 			line++
 			break
 		case 7:
@@ -121,10 +129,10 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
 				return &t, sid, e
 			}
 
-			if _, ok := t.Neighbors[id2]; ok {
-				t.Neighbors[id2].Cost = cost
+			if _, ok := t.Servers[id2]; ok {
+				t.Servers[id2].Cost = cost
+                t.Servers[id2].Neighbor = true
 			}
-
 			line++
 			break
 		default:
@@ -147,8 +155,9 @@ func ParseTopologyFile(file string) (*Topology, uint16, error) {
 				return &t, sid, e
 			}
 
-			if _, ok := t.Neighbors[id]; ok {
-				t.Neighbors[id].Cost = cost
+			if _, ok := t.Servers[id]; ok {
+				t.Servers[id].Cost = cost
+                t.Servers[id].Neighbor = true
 			}
 
 			line++
@@ -176,21 +185,3 @@ func GetOutboundIP(port string) string {
 	ipArr := strings.Split(ip, ":")
 	return ipArr[0]
 }
-
-// GetNeighborID returns the ID of the neighbor associated with the provided port
-func (t *Topology) GetNeighborID(port string) uint16 {
-	var id uint16
-	t.mu.Lock()
-	neighbors := t.Neighbors
-	t.mu.Unlock()
-
-	for _, n := range neighbors {
-		bindyarr := strings.Split(n.Bindy, ":")
-		p := bindyarr[1]
-		if p == port {
-			id = n.ID
-			break
-		}
-	}
-	return id
-} // }}}

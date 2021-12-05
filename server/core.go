@@ -1,152 +1,85 @@
+// Package server provides server functionality
 package server
 
 import (
-	"dvr-protocol/types"
+	"dvr/log"
+	"dvr/types"
 	"fmt"
-	"log"
-	"os"
-	"sort"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
-var inf int = 99999
+// func New {{{
 
-// New initializes and returns a new server
-func New(file string, interval int) *Server {
-	// Parse the given topology file
-	t, id, err := ParseTopologyFile(file)
-	if err != nil {
-		log.Fatalf("server.New(%s, %d): error parsing topology file: %v", file, interval, err)
-		return &Server{}
-	}
-
-	// Create a new server
-	s := &Server{
+// New initializes and returns a new Server.
+func New(packetChan chan []byte, id uint16, bindy string, router types.Router, l *log.Logger) *Server {
+	s := Server{
 		ID:  id,
-		t:   t,
-		bye: make(chan struct{}, 0),
+		bindy: bindy,
+		log: l,
+        bye: make(chan struct{}, 0),
+		packetChan: packetChan,
+		router: router,
 	}
 
-	// Initialize the neighbors sync map
-	s.initializeNeighbors()
+	// Return the new server
+	return &s
+} // }}}
 
-	// Set the update interval for the routing updates
-	inv := fmt.Sprintf("%ds", interval)
-	s.upint, err = time.ParseDuration(inv)
+
+// Loopy sends the routing updates at the specified time interval
+func (s *Server) Loopy(updateInterval int) error {
+    // Set the update interval for the routing updates
+	inv := fmt.Sprintf("%ds", updateInterval)
+	interval, err := time.ParseDuration(inv)
 	if err != nil {
-		log.Fatalf("server.New(%s, %d): error parsing update interval! %v", file, interval, err)
-		return s
+		return errors.Wrapf(err, "server.New: error parsing update interval '%d'", updateInterval)
 	}
 
-	return s
-}
+    // Basic tracking ticker, set to tick at the same time interval
+	// as update interval
+	tick := time.NewTicker(interval)
+	defer tick.Stop()
 
-// initializeNeighbors initializes the neighbors sync map
-func (s *Server) initializeNeighbors() {
-	for _, n := range s.t.Neighbors {
-		// Is this neighbor ourself?
-		if n.ID == s.ID {
-			// Yep, set our servers bind address and set this neighbors cost to 0
-			s.Bindy = n.Bindy
-			n.Cost = 0
+	for {
+		select {
+		case <-tick.C:
+			// Log the auto packet update
+			s.log.OutServer("\ns.Loopy: Sending packet update now..\n")
+			s.log.OutApp("\nPlease enter a command: ")
+
+			// Send the update messages
+			if err := s.router.SendPacketUpdates(); err != nil {
+				s.log.OutError("\ns.Loopy: failed to send routing updates! err = 5+v\n", err)
+				s.log.OutApp("\nPlease enter a command: ")
+			}
+
+			// Log the suuccess of the update
+			s.log.OutServer("\ns.Loopy: Successfully sent packets!\n")
+			s.log.OutApp("\nPlease enter a command: ")
+
+			if err := s.router.CheckUpdates(interval); err != nil {
+				s.log.OutError("s.Loopy: error while checking updates - %s", err.Error())
+			}
+		case _, ok := <-s.bye:
+			if !ok {
+				e := errors.New("\ns.Loopy: our bye channel was closed! The server must have crashed")
+				return e
+			}
 		}
-
-		// Add the new neighbor to our sync map
-		s.neighbors.Store(n.ID, n)
-		s.ids = append(s.ids, int(n.ID))
 	}
-
-	// Sort the array of ids.
-	sort.Ints(s.ids)
-}
-
-// SetApplication sets the application of the server, since we make the server
-// prior to making the application
-func (s *Server) SetApplication(app types.Application) {
-	s.app = app
-}
-
-// Topology returns the servers topology struct
-func (s *Server) Topology() *Topology {
-	return s.t
 }
 
 // Update sets the link cost between two neighbors to the given cost
 func (s *Server) Update(id1, id2 uint16, newCost int) error {
-	if s.ID == id1 {
-		// Try loading our connection from the sync map
-		_, ok := s.neighbors.Load(id2)
-
-		// Check if it was loaded or not - if it didin't its not
-		// its not one our neighbors
-		if !ok {
-			return errors.Errorf("s.Update(%d, %d): error updating link, link id not found.", id1, id2)
-		}
-
-		// Safely retrieve our neighbor from the neighbors map
-		s.t.mu.Lock()
-		n := s.t.Neighbors[int(id2)]
-		s.t.mu.Unlock()
-
-		// Update the neighbors link cost
-		n.mu.Lock()
-		if n.Cost == inf {
-			n.mu.Unlock()
-			return errors.Errorf("s.Update(%d, %d): error updating link, the server to update is not active", id1, id2)
-		}
-		n.Cost = newCost
-		n.mu.Unlock()
-	} else if s.ID == id2 {
-		// Try loading our connection from the sync map
-		_, ok := s.neighbors.Load(id1)
-
-		// Check if it was loaded or not - if it didin't its not
-		// its not one our neighbors
-		if !ok {
-			return errors.Errorf("s.Update(%d, %d): error updating link, link id not found.", id1, id2)
-		}
-
-		// Safely retrieve our neighbor from the neighbors map
-		s.t.mu.Lock()
-		n := s.t.Neighbors[int(id1)]
-		s.t.mu.Unlock()
-
-		// Update the neighbors link cost
-		n.mu.Lock()
-		if n.Cost == inf {
-			n.mu.Unlock()
-			return errors.Errorf("s.Update(%d, %d): error updating link, the server to update is not active", id1, id2)
-		}
-		n.Cost = newCost
-		n.mu.Unlock()
-	}
-
-	// Set the link cost in the routing table to the new cost
-	// NOTE: Costs are bi-directional, so update both entries in the routing table
-	s.t.mu.Lock()
-	s.t.Routing[int(id1)-1][int(id2)-1] = newCost
-	s.t.Routing[int(id2)-1][int(id1)-1] = newCost
-	rt := s.t.Routing
-	s.t.mu.Unlock()
-
-	// Update the routing table
-	s.updateRoutingTable(rt)
-
-	return nil
+    return s.router.Update(id1,id2,newCost)
 }
 
 // Step sends the routing update immediately, instead of waiting for the update interval
 func (s *Server) Step() error {
-	// Prepare the message packet
-	packet, err := s.preparePacket()
-	if err != nil {
-		return errors.Errorf("s.Step: failed to send prepare packet for update: %+v", err)
-	}
-
 	// Send the update messages
-	if err := s.sendUpdates(packet); err != nil {
+	if err := s.router.SendPacketUpdates(); err != nil {
 		return errors.Errorf("s.Step: failed to send packet update: %+v", err)
 	}
 
@@ -157,89 +90,31 @@ func (s *Server) Step() error {
 // this function was called.
 func (s *Server) Packets() error {
 	s.mu.Lock()
-	packets := s.p
-	s.p = 0
+	packets := s.packets
+	s.packets = 0
 	s.mu.Unlock()
 
-	s.app.OutCyan("Number of packets received since last call %d\n", packets)
+	s.log.OutServer("Number of packets received since last call: %d\n", packets)
 	return nil
 }
 
 // Display displays the current routing table.
 func (s *Server) Display() error {
-	s.app.OutCyan("\nsrc id | next hop id | link cost\n")
-	s.app.OutCyan("-------+-------------+-----------\n")
-
-	// Let's grab the ids the server currently has
-	s.mu.Lock()
-	ids := s.ids
-	sid := s.ID
-	s.mu.Unlock()
-
-	// Range over our array of ids and print them.
-	for _, id := range ids {
-		// Try loading our connection from the sync map
-		_, ok := s.neighbors.Load(uint16(id))
-
-		// Check if it was loaded or not - if it didin't its likely
-		// been deleted from the map so just continue
-		if !ok {
-			continue
-		}
-
-		s.t.mu.Lock()
-		n := s.t.Neighbors[id]
-		s.t.mu.Unlock()
-
-		// Make sure we don't add ourself or disabled links to the table
-		if n.Cost == 0 || n.Cost == inf {
-			continue
-		}
-
-		s.app.OutCyan("   %d   |      %d      |    %d \n", sid, n.ID, n.Cost)
-	}
-	s.app.Out("\n")
-
+    s.router.DisplayTable()
 	return nil
 }
 
-// Disable disables the link between two servers.
+// Disable disables the link between this server and another
 func (s *Server) Disable(id uint16) error {
-	// Try loading our connection from the sync map
-	_, ok := s.neighbors.Load(id)
-
-	// Check if it was loaded or not
-	if !ok {
-		return errors.Errorf("s.Disable(%d): error disabling link, link id not found", id)
-	}
-
-	// Safely retrieve our neighbor from the neighbors map & update the routing table
-	s.t.mu.Lock()
-	n := s.t.Neighbors[int(id)]
-	rt := s.t.Routing
-	s.t.mu.Unlock()
-
-	// Set the link cost to infinity and set disabled
-	n.mu.Lock()
-	n.disabled = true
-	n.Cost = inf
-	n.mu.Unlock()
-
-	// Update the routing table
-	rt[int(s.ID)-1][int(n.ID)-1] = inf
-	rt[int(id)-1][int(s.ID)-1] = inf
-	s.updateRoutingTable(rt)
-
-	return nil
+    return s.router.Disable(id)
 }
 
 // Crash simulates a server crashing
-func (s *Server) Crash() {
+func (s *Server) Crash() error {
+    s.log.OutServer("Crashing server now .. bye!\n")
 	s.mu.Lock()
 	// Closing s.bye will cause the s.Listen and the s.Loopy goroutines to stop
 	close(s.bye)
 	s.mu.Unlock()
-
-	s.app.Out("Crashing server now .. bye!\n")
-	os.Exit(0)
+    return nil
 }
