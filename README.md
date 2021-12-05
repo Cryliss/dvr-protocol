@@ -40,7 +40,7 @@ Please *strictly adhere* to the specifications.
 
 ## Topology Establishment
 The four servers are required to form a network topology.  
-![Figure 1: Example Topology](https://github.com/Cryliss/dvrprotocol/blob/main/docs/Figure-1-Example-Topology.png)
+![Figure 1: Example Topology](https://github.com/Cryliss/dvr-protocol/blob/main/docs/Figure-1-Example-Topology.png)
 
 Each server is supplied with a topology file at startup that it uses to build its initial routing table.  
 The topology file is local and contains the link cost to the neighbors (all other servers will be infinity).  
