@@ -5,25 +5,25 @@ import (
     "dvr/message"
     "fmt"
     "time"
-    
+
     "github.com/pkg/errors"
 )
 
 // newPacket handles new packet updates
 func (r *Router) newPacket(packet []byte) {
     // Create a new message and try to unmarshal the packet into it
-	var msg = &message.Message{}
-	if err := message.UnmarshalMessage(packet, msg); err != nil {
-	    r.log.OutError("\nr.newPacket(%+v): Error unmarshaling packet! err = %+v\n\nPlease enter a command: ", packet, err)
-		return
-	}
+    var msg = &message.Message{}
+    if err := message.UnmarshalMessage(packet, msg); err != nil {
+        r.log.OutError("\nr.newPacket(%+v): Error unmarshaling packet! err = %+v\n", packet, err)
+        r.log.OutApp("\nPlease enter a command: ")
+    }
 
     // Retrieve the sender ID & Port #
-	senderPort := fmt.Sprintf("%d", msg.Port)
-	senderID := r.GetNeighborID(senderPort)
+    senderPort := fmt.Sprintf("%d", msg.Port)
+    senderID := r.GetNeighborID(senderPort)
 
-	// Let the user know we just got a new packet
-	r.log.OutServer("\nRECEIVED A MESSAGE FROM SERVER %d\n", senderID)
+    // Let the user know we just got a new packet
+    r.log.OutServer("\nRECEIVED A MESSAGE FROM SERVER %d\n", senderID)
     r.log.OutApp("\nPlease enter a command: ")
 
     if r.checkForwarding(senderID, packet) {
@@ -38,8 +38,8 @@ func (r *Router) newPacket(packet []byte) {
 
     tableUp := make(map[uint16]tableUpdate, len(r.table))
     // Loop through each of our message neighbors and update the routing table
-	// for the neighbor and the neighbor link costs accordingly.
-	for _, n := range msg.N {
+    // for the neighbor and the neighbor link costs accordingly.
+    for _, n := range msg.N {
         t := tableUpdate{
             ID: n.ID,
             Cost: int(n.Cost),
@@ -100,12 +100,12 @@ func (r *Router) SendPacketUpdates() error {
             }
 
             // Create a new client connection and send the packet
-    		c, err := client.NewClient(bindy)
-    		if err != nil {
-    			return errors.Wrapf(err, "r.sendUpdates: failed to send updates to neighbor %d - bindy: %s", id, bindy)
-    		}
+            c, err := client.NewClient(bindy)
+            if err != nil {
+                return errors.Wrapf(err, "r.sendUpdates: failed to send updates to neighbor %d - bindy: %s", id, bindy)
+            }
 
-    		c.SendPacket(packet, r.log)
+            c.SendPacket(packet, r.log)
         }
     }
     return nil
@@ -138,7 +138,7 @@ func (r *Router) SendPacket(packet []byte, src, dst uint16) error {
 
     c.SendPacket(packet, r.log)
     //r.log.OutServer("\nSENT PACKET TO %d\n", id)
-	return nil
+    return nil
 }
 
 // preparePacket prepares an update packet
@@ -149,58 +149,58 @@ func (r *Router) preparePacket() ([]byte, error) {
     neighbors := r.table
     numUpdates := len(neighbors)
 
-	// Create a new update message
-	updateMsg := &message.Message{
-		Updates: uint16(numUpdates),
-		Port:    uint16(neighbors[r.ID].port),
-		IP:      neighbors[r.ID].IP,
-	}
+    // Create a new update message
+    updateMsg := &message.Message{
+        Updates: uint16(numUpdates),
+        Port:    uint16(neighbors[r.ID].port),
+        IP:      neighbors[r.ID].IP,
+    }
 
-	// Create a new map for our update message neighbors to go into
-	var un map[uint16]*message.Neighbor
-	un = make(map[uint16]*message.Neighbor, numUpdates)
+    // Create a new map for our update message neighbors to go into
+    var un map[uint16]*message.Neighbor
+    un = make(map[uint16]*message.Neighbor, numUpdates)
 
-	// Create update neighbors for each neighbor our server has
-	// and one for our server itself.
+    // Create update neighbors for each neighbor our server has
+    // and one for our server itself.
     var i uint16 = 1
-	for ; i < uint16(NumServers); i++ {
+	for ; i <= uint16(NumServers); i++ {
         // Let's get the neighbors information
-		n := neighbors[i]
+        n := neighbors[i]
 
-		// Create a new mNeighbor
-		updateNeighbor := message.Neighbor{
-			IP:   n.IP,
-			Port: uint16(n.port),
-			ID:   n.ID,
-			Cost: uint16(n.linkCost),
-		}
+        // Create a new mNeighbor
+        updateNeighbor := message.Neighbor{
+            IP:   n.IP,
+            Port: uint16(n.port),
+            ID:   n.ID,
+            Cost: uint16(n.linkCost),
+        }
 
-		// Uncomment this line to see how the update neighbor is formatted
-		//r.log.OutDebug("Update neighbor: %+v\n", updateNeighbor)
+        // Uncomment this line to see how the update neighbor is formatted
+        //r.log.OutDebug("Update neighbor: %+v\n", updateNeighbor)
 
-		// Formatting looks like this --
-		// Update neighbor: {nIP:192.168.0.104 nPort:2000 nID:1 nCost:7}
+        // Formatting looks like this --
+        // Update neighbor: {nIP:192.168.0.104 nPort:2000 nID:1 nCost:7}
 
-		// Add the neighbor to the update neighbor map
-		un[n.ID] = &updateNeighbor
-	}
+        // Add the neighbor to the update neighbor map
+        un[n.ID] = &updateNeighbor
+    }
 
-	//r.log.OutDebug("neighbors? %+v\n", un)
+    //r.log.OutDebug("neighbors? %+v\n", un)
 
-	// Set the update message neighbors map equal to our update neighbor map
-	updateMsg.N = un
+    // Set the update message neighbors map equal to our update neighbor map
+    updateMsg.N = un
 
-	// Marshal the message into a packet to be sent
-	packet, err := updateMsg.Marshal()
-	if err != nil {
-		e := errors.Wrapf(err, "failed to marshal update message %+v", updateMsg)
-		return packet, e
-	}
+    // Marshal the message into a packet to be sent
+    packet, err := updateMsg.Marshal()
+    if err != nil {
+        e := errors.Wrapf(err, "failed to marshal update message %+v", updateMsg)
+        return packet, e
+    }
 
-	//r.log.OutDebug("Packet: %+v\n", packet)
-	//r.log.OutDebug("Update Message: %+v\n", updateMsg)
+    //r.log.OutDebug("Packet: %+v\n", packet)
+    //r.log.OutDebug("Update Message: %+v\n", updateMsg)
 
-	return packet, nil
+    return packet, nil
 }
 
 // createDifferentSenderPacket(senderID, neighborID) marshals
@@ -210,52 +210,52 @@ func (r *Router) createDifferentSenderPacket(senderID, neighborID uint16, newCos
     r.mu.Lock()
     defer r.mu.Unlock()
 
-	sender := r.table[senderID]
+    sender := r.table[senderID]
 
-	// Create a new update message
-	updateMsg := &message.Message{
-		Updates: uint16(1),
-		Port:    uint16(sender.port),
-		IP:      sender.IP,
-	}
+    // Create a new update message
+    updateMsg := &message.Message{
+        Updates: uint16(1),
+        Port:    uint16(sender.port),
+        IP:      sender.IP,
+    }
 
-	// Create a new map for our update message neighbors to go into
-	var un map[uint16]*message.Neighbor
-	un = make(map[uint16]*message.Neighbor, 1)
+    // Create a new map for our update message neighbors to go into
+    var un map[uint16]*message.Neighbor
+    un = make(map[uint16]*message.Neighbor, 1)
 
-	// Create an update neighbors for the neighbor
-	neighbor := r.table[neighborID]
+    // Create an update neighbors for the neighbor
+    neighbor := r.table[neighborID]
 
-	// Create a new mNeighbor
-	updateNeighbor := &message.Neighbor{
-		IP:   neighbor.IP,
-		Port: uint16(neighbor.port),
-		ID:   neighbor.ID,
-		Cost: uint16(newCost),
-	}
+    // Create a new mNeighbor
+    updateNeighbor := &message.Neighbor{
+        IP:   neighbor.IP,
+        Port: uint16(neighbor.port),
+        ID:   neighbor.ID,
+        Cost: uint16(newCost),
+    }
 
-	// Uncomment this line to see how the update neighbor is formatted
-	//s.log.OutServer("Update neighbor: %+v\n", *updateNeighbor)
+    // Uncomment this line to see how the update neighbor is formatted
+    //r.log.OutServer("Update neighbor: %+v\n", *updateNeighbor)
 
-	// Formatting looks like this --
-	// Update neighbor: {nIP:192.168.0.104 nPort:2000 nID:1 nCost:7}
+    // Formatting looks like this --
+    // Update neighbor: {nIP:192.168.0.104 nPort:2000 nID:1 nCost:7}
 
-	// Add the neighbor to the update neighbor map
-	un[neighbor.ID] = updateNeighbor
+    // Add the neighbor to the update neighbor map
+    un[neighbor.ID] = updateNeighbor
 
-	// Set the update message neighbors map equal to our update neighbor map
-	updateMsg.N = un
+    // Set the update message neighbors map equal to our update neighbor map
+    updateMsg.N = un
 
-	// Marshal the message into a packet to be sent
-	packet, err := updateMsg.Marshal()
-	if err != nil {
-		e := errors.Wrapf(err, "failed to marshal update message %+v", updateMsg)
-		return packet, e
-	}
+    // Marshal the message into a packet to be sent
+    packet, err := updateMsg.Marshal()
+    if err != nil {
+        e := errors.Wrapf(err, "failed to marshal update message %+v", updateMsg)
+        return packet, e
+    }
 
-	//s.log.OutServer("\nUpdate Message: %+v\n", updateMsg)
+    //s.log.OutServer("\nUpdate Message: %+v\n", updateMsg)
 
-	return packet, nil
+    return packet, nil
 }
 
 // checkForwarding checks to see if a new packet should be forwarded
@@ -301,5 +301,5 @@ func (r *Router) forwardPacket(packet []byte, bindy string, id uint16) error {
     }
 
     c.SendPacket(packet, r.log)
-	return nil
+    return nil
 }

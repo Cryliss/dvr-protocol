@@ -8,16 +8,16 @@ func (r *Router) DisplayTable() {
     defer r.mu.Unlock()
 
     r.log.OutServer("\n dst id |  next hop id  | link cost\n")
-	r.log.OutServer("--------+---------------+-----------\n")
+    r.log.OutServer("--------+---------------+-----------\n")
 
     var i uint16 = 1
-	for ; i <= uint16(NumServers); i++ {
+    for ; i <= uint16(NumServers); i++ {
         //r.log.OutDebug("Table: %+v\n", r.table[i])
         if r.table[i].linkCost == Inf || r.table[i].linkCost == 0 {
             continue
         }
         r.log.OutServer("%d\t|\t%d\t| %d \n", r.table[i].ID, r.table[i].nextHop, r.table[i].linkCost)
-	}
+    }
 
     r.log.OutApp("\nPlease enter a command: ")
 }

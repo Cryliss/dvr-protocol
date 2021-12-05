@@ -14,12 +14,12 @@ const maxBufferSize = 1024
 func (s *Server) Listen() error {
 	var err error
 
-    s.mu.Lock()
-    bindy := s.bindy
-    s.mu.Unlock()
+	s.mu.Lock()
+	bindy := s.bindy
+	s.mu.Unlock()
 
 	// Lets set our protocols listener by calling net.ListenPacket to
-    // specifically create a UDP packet listener.
+	// specifically create a UDP packet listener.
 	s.listener, err = net.ListenPacket("udp", bindy)
 	if err != nil {
 		log.Fatalf("s.Listen: error creating a new packet listener! %s", err.Error())

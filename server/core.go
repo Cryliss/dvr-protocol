@@ -30,14 +30,14 @@ func New(packetChan chan []byte, id uint16, bindy string, router types.Router, l
 
 // Loopy sends the routing updates at the specified time interval
 func (s *Server) Loopy(updateInterval int) error {
-    // Set the update interval for the routing updates
+	// Set the update interval for the routing updates
 	inv := fmt.Sprintf("%ds", updateInterval)
 	interval, err := time.ParseDuration(inv)
 	if err != nil {
 		return errors.Wrapf(err, "server.New: error parsing update interval '%d'", updateInterval)
 	}
 
-    // Basic tracking ticker, set to tick at the same time interval
+	// Basic tracking ticker, set to tick at the same time interval
 	// as update interval
 	tick := time.NewTicker(interval)
 	defer tick.Stop()
@@ -100,7 +100,7 @@ func (s *Server) Packets() error {
 
 // Display displays the current routing table.
 func (s *Server) Display() error {
-    s.router.DisplayTable()
+	s.router.DisplayTable()
 	return nil
 }
 
@@ -111,10 +111,10 @@ func (s *Server) Disable(id uint16) error {
 
 // Crash simulates a server crashing
 func (s *Server) Crash() error {
-    s.log.OutServer("Crashing server now .. bye!\n")
+	s.log.OutServer("Crashing server now .. bye!\n")
 	s.mu.Lock()
 	// Closing s.bye will cause the s.Listen and the s.Loopy goroutines to stop
 	close(s.bye)
 	s.mu.Unlock()
-    return nil
+	return nil
 }

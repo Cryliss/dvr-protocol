@@ -16,29 +16,29 @@ var debug bool
 
 // usage prints information on how to use the program and then exits
 func usage() {
-	fmt.Printf("usage: %s\n", os.Args[0])
-	flag.PrintDefaults()
-	os.Exit(-1)
+    fmt.Printf("usage: %s\n", os.Args[0])
+    flag.PrintDefaults()
+    os.Exit(-1)
 }
 
 // checkFlags checks the command line flags given at startup
 func checkFlags() {
     // Lets load our flags.
-	flag.StringVar(&file, "t", "", "Topology file name.")
-	flag.IntVar(&interval, "i", -1, "Routing update interval, in seconds.")
+    flag.StringVar(&file, "t", "", "Topology file name.")
+    flag.IntVar(&interval, "i", -1, "Routing update interval, in seconds.")
     flag.BoolVar(&debug, "d", true, "Whether or not to show routing tables for debugging.")
-	flag.Parse()
+    flag.Parse()
 
-	// Did we get a file name or interval to update?
-	if interval == -1 || file == "" {
-		usage()
-	}
+    // Did we get a file name or interval to update?
+    if interval == -1 || file == "" {
+        usage()
+    }
 
-	// Check that the file path actually exists
-	if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
-		fmt.Printf("The provided file path does not exist!")
-		os.Exit(-1)
-	}
+    // Check that the file path actually exists
+    if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
+        fmt.Printf("The provided file path does not exist!")
+        os.Exit(-1)
+    }
 }
 
 func main() {
@@ -62,16 +62,16 @@ func main() {
     go a.Server.Loopy(interval)
 
     // Print the current topology setup
-	a.Log.OutServer("\nTOPOLOGY\n")
-	a.Log.OutServer("========\n")
-	a.Server.Display()
+    a.Log.OutServer("\nTOPOLOGY\n")
+    a.Log.OutServer("========\n")
+    a.Server.Display()
 
     // Begin waiting for user input
-	for {
-		err := a.WaitForInput()
-		if err != nil {
-			a.Log.OutError("ERROR: %v\nExiting application now\n", err)
-			os.Exit(-1)
-		}
-	}
+    for {
+        err := a.WaitForInput()
+        if err != nil {
+            a.Log.OutError("ERROR: %v\nExiting application now\n", err)
+            os.Exit(-1)
+        }
+    }
 }

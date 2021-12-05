@@ -5,24 +5,24 @@ import "fmt"
 // routerThread is a thread for handling routing table updates
 func (r *Router) routerThread() {
     for {
-		select {
-		case update := <-r.UpdateChan:
-			r.UpdateTable(update)
-		}
-	}
+        select {
+        case update := <-r.UpdateChan:
+            r.UpdateTable(update)
+        }
+    }
 }
 
 // routerThread is a thread for handling new packet updates
 func (r *Router) packetThread() {
     for {
-		select {
+        select {
         case packet := <- r.PacketChan:
             r.newPacket(packet)
             if r.log.Debug {
                 r.DisplayTable()
             }
-		}
-	}
+        }
+    }
 }
 
 // UpdateTable updates the routing table
@@ -40,21 +40,21 @@ func (r *Router) UpdateTable(rt routingTable) {
     }
 
     for destination, n := range rt.Table {
-		_, ok := r.table[destination]
+        _, ok := r.table[destination]
 
         if destination == senderID || destination == r.ID {
             continue
         }
 
-		cost := n.Cost + rt.Table[r.ID].Cost
-		if ok {
-			// If our cost is larger than the incoming cost, update our table.
-			if r.table[destination].linkCost > cost && cost > 0 {
-				r.table[destination].linkCost = cost
-				r.table[destination].nextHop = senderID
-				updated = true
-			}
-		} else {
+        cost := n.Cost + rt.Table[r.ID].Cost
+        if ok {
+            // If our cost is larger than the incoming cost, update our table.
+            if r.table[destination].linkCost > cost && cost > 0 {
+                r.table[destination].linkCost = cost
+                r.table[destination].nextHop = senderID
+                updated = true
+            }
+        } else {
             newn := neighbor{
                 linkCost: n.Cost,
                 ID: senderID,
@@ -62,7 +62,7 @@ func (r *Router) UpdateTable(rt routingTable) {
             r.table[destination] = &newn
             updated = true
         }
-	}
+    }
 
     if updated {
         go r.sendToNeighbors()
@@ -102,15 +102,15 @@ func (r *Router) sendToNeighbors() {
 
 // GetNeighborID returns the ID of the neighbor associated with the provided port
 func (r *Router) GetNeighborID(port string) uint16 {
-	var id uint16
-	r.mu.Lock()
-	defer r.mu.Unlock()
+    var id uint16
+    r.mu.Lock()
+    defer r.mu.Unlock()
 
-	for _, server := range r.table {
+    for _, server := range r.table {
         p := fmt.Sprintf("%d", server.port)
-		if p == port {
-			return server.ID
-		}
-	}
-	return id
+        if p == port {
+            return server.ID
+        }
+    }
+    return id
 } // }}}

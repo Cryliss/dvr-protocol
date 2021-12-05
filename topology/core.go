@@ -56,116 +56,116 @@ func ParseTopology(file string) (*Topology, uint16, error) {
 		case 5:
 			fallthrough
 		case 6:
-			text := scanner.Text()
-			textArr := strings.Split(text, " ")
-			if len(textArr) != 3 {
-				e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
-				return &t, sid, e
-			}
+            text := scanner.Text()
+            textArr := strings.Split(text, " ")
+            if len(textArr) != 3 {
+                e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
+                return &t, sid, e
+            }
 
-			tid, err := strconv.Atoi(textArr[0])
-			if err != nil {
-				e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-				return &t, sid, e
-			}
-			id := uint16(tid)
+            tid, err := strconv.Atoi(textArr[0])
+            if err != nil {
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
+            }
+            id := uint16(tid)
 
             portS := textArr[2]
-			port, err := strconv.Atoi(portS)
+            port, err := strconv.Atoi(portS)
             if err != nil {
-				e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in port field of line %d", line)
-				return &t, sid, e
-			}
-			/* Project specification part 3.1 Topology Establishment
-			   "The host server here is the one which will read this topology file).
-			   Note: the IPs of servers may change when you are running the
-			   program in a wireless network environment.
-			   So, we need to use ifconfig or ipconfig to obtain the IP first
-			   and then set up the topology file before the demo."
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in port field of line %d", line)
+                return &t, sid, e
+            }
+            /* Project specification part 3.1 Topology Establishment
+               "The host server here is the one which will read this topology file).
+               Note: the IPs of servers may change when you are running the
+               program in a wireless network environment.
+               So, we need to use ifconfig or ipconfig to obtain the IP first
+               and then set up the topology file before the demo."
 
-			   Calling GetOutboundIP right here makes it so we don't have to
-			   do that at all. If this this is the first server (i.e. host),
-			   then let's set the ip to the outbound ip of the machine
-			*/
-			ip := GetOutboundIP(portS)
+               Calling GetOutboundIP right here makes it so we don't have to
+               do that at all. If this this is the first server (i.e. host),
+               then let's set the ip to the outbound ip of the machine
+            */
+            ip := GetOutboundIP(portS)
 
-			n := Server{
-				ID:    id,
+            n := Server{
+                ID:    id,
                 IP:    ip,
                 Port:  port,
-				Bindy: ip + ":" + portS,
-				Cost:  inf,
+                Bindy: ip + ":" + portS,
+                Cost:  inf,
                 Neighbor: false,
-			}
+            }
 
-			t.Servers[tid] = &n
-			line++
-			break
-		case 7:
-			text := scanner.Text()
-			textArr := strings.Split(text, " ")
-			if len(textArr) != 3 {
-				e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
-				return &t, sid, e
-			}
+            t.Servers[tid] = &n
+            line++
+            break
+        case 7:
+            text := scanner.Text()
+            textArr := strings.Split(text, " ")
+            if len(textArr) != 3 {
+                e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
+                return &t, sid, e
+            }
 
-			id1, err := strconv.Atoi(textArr[0])
-			if err != nil {
-				e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-				return &t, sid, e
-			}
+            id1, err := strconv.Atoi(textArr[0])
+            if err != nil {
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
+            }
 
-			sid = uint16(id1)
+            sid = uint16(id1)
 
-			id2, err := strconv.Atoi(textArr[1])
-			if err != nil {
-				e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-				return &t, sid, e
-			}
+            id2, err := strconv.Atoi(textArr[1])
+            if err != nil {
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
+            }
 
-			cost, err := strconv.Atoi(textArr[2])
-			if err != nil {
-				e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-				return &t, sid, e
-			}
+            cost, err := strconv.Atoi(textArr[2])
+            if err != nil {
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
+            }
 
-			if _, ok := t.Servers[id2]; ok {
-				t.Servers[id2].Cost = cost
+            if _, ok := t.Servers[id2]; ok {
+                t.Servers[id2].Cost = cost
                 t.Servers[id2].Neighbor = true
-			}
-			line++
-			break
-		default:
-			text := scanner.Text()
-			textArr := strings.Split(text, " ")
-			if len(textArr) != 3 {
-				e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
-				return &t, sid, e
-			}
-			// I could care less about the server id in textArr[0]
-			id, err := strconv.Atoi(textArr[1])
-			if err != nil {
-				e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-				return &t, sid, e
-			}
+            }
+            line++
+            break
+        default:
+            text := scanner.Text()
+            textArr := strings.Split(text, " ")
+            if len(textArr) != 3 {
+                e := errors.Errorf("ParseTopologyFile: error parsing topology file, incorrect number of arguments in line %d", line)
+                return &t, sid, e
+            }
+            // I could care less about the server id in textArr[0]
+            id, err := strconv.Atoi(textArr[1])
+            if err != nil {
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
+            }
 
-			cost, err := strconv.Atoi(textArr[2])
-			if err != nil {
-				e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
-				return &t, sid, e
-			}
+            cost, err := strconv.Atoi(textArr[2])
+            if err != nil {
+                e := errors.Errorf("s.ParseTopologyFile: error parsing topology file, non integer in first column of line %d", line)
+                return &t, sid, e
+            }
 
-			if _, ok := t.Servers[id]; ok {
-				t.Servers[id].Cost = cost
+            if _, ok := t.Servers[id]; ok {
+                t.Servers[id].Cost = cost
                 t.Servers[id].Neighbor = true
-			}
+            }
 
-			line++
-			break
-		}
-	}
+            line++
+            break
+        }
+    }
 
-	return &t, sid, nil
+    return &t, sid, nil
 }
 
 // GetOutboundIP gets the preferred outbound ip of this machine
