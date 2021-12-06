@@ -2,9 +2,17 @@ package network
 
 import (
     "dvr/log"
+    "errors"
     "sync"
     "time"
 )
+
+// DisErr is the error message to display on disable error - non-neighbor
+var DisErr error = errors.New("cannot disable a non neighbor link")
+// DisSErr is the error message to display on disable error - self
+var DisSErr error = errors.New("cannot disable link to youself")
+// SendErr is the error message to display on send error - self 
+var SendErr error = errors.New("cannot send packet to yourself")
 
 type tableUpdate struct {
     ID uint16
@@ -46,6 +54,8 @@ type neighbor struct {
 
     IP string
     port int
+
+    active bool
 
     // The direct cost between source and destination servers
     directCost int

@@ -15,18 +15,15 @@ var (
 )
 
 // New initializes and returns a new network.
-func New(top *topology.Topology, sid uint16, debug bool) *server.Server {
+func New(top *topology.Topology, sid uint16, l *log.Logger) *server.Server {
     var n Network
     NumServers = top.NumServers
     n.Channels = make(map[uint16]chan routingTable, NumServers)
-    s := n.parseTopology(top, sid, debug)
+    s := n.parseTopology(top, sid, l)
     return s
 }
 
-func (n *Network) parseTopology(top *topology.Topology, sid uint16, debug bool) *server.Server {
-    log := log.New()
-    log.Debug = debug
-
+func (n *Network) parseTopology(top *topology.Topology, sid uint16, l *log.Logger) *server.Server {
     var routers map[uint16]*Router
     routers = make(map[uint16]*Router, NumServers)
 
@@ -40,12 +37,16 @@ func (n *Network) parseTopology(top *topology.Topology, sid uint16, debug bool) 
 
             s := neighbor{
                 ID: server.ID,
+
                 IP: server.IP,
                 port: server.Port,
                 bindy: server.Bindy,
+
+                active: false,
                 nextHop: uint16(0),
                 directCost: 0,
                 linkCost: 0,
+
                 updated: time.Now(),
                 forwarded: time.Now(),
             }
@@ -55,12 +56,16 @@ func (n *Network) parseTopology(top *topology.Topology, sid uint16, debug bool) 
 
         s := neighbor{
             ID: server.ID,
+
             IP: server.IP,
             port: server.Port,
             nextHop: uint16(0),
             bindy: server.Bindy,
+
+            active: true,
             directCost: server.Cost,
             linkCost: server.Cost,
+
             updated: time.Now(),
             forwarded: time.Now(),
         }
@@ -68,7 +73,7 @@ func (n *Network) parseTopology(top *topology.Topology, sid uint16, debug bool) 
             s.nextHop = s.ID
         }
         table[server.ID] = &s
-        r := n.createRouter(server.ID, server.Cost, log)
+        r := n.createRouter(server.ID, server.Cost, l)
         routers[server.ID] = r
     }
 
@@ -78,7 +83,7 @@ func (n *Network) parseTopology(top *topology.Topology, sid uint16, debug bool) 
         table: table,
         PacketChan: make(chan []byte, 50000),
         UpdateChan: make(chan routingTable, 100),
-        log: log,
+        log: l,
     }
     go r.routerThread()
     go r.packetThread()
@@ -87,20 +92,35 @@ func (n *Network) parseTopology(top *topology.Topology, sid uint16, debug bool) 
     n.Routers = routers
     n.Channels[r.ID] = r.UpdateChan
 
-    server := server.New(r.PacketChan, sid, bindy, &r, log)
+    server := server.New(r.PacketChan, sid, bindy, &r, l)
     return server
 }
 
-func (n *Network) createRouter(id uint16, cost int, log *log.Logger) *Router {
+func (n *Network) createRouter(id uint16, cost int, l *log.Logger) *Router {
     var table map[uint16]*neighbor
     table = make(map[uint16]*neighbor, NumServers)
 
     var i uint16 = 1
     for ; i <= uint16(NumServers); i++ {
 
+        if i == id {
+            s := neighbor{
+                ID: i,
+                active: true,
+                nextHop: uint16(0),
+                directCost: cost,
+                linkCost: Inf,
+                updated: time.Now(),
+                forwarded: time.Now(),
+            }
+            table[i] = &s
+            continue
+        }
+
         s := neighbor{
             ID: i,
             nextHop: uint16(0),
+            active: false,
             directCost: Inf,
             linkCost: Inf,
             updated: time.Now(),
@@ -115,7 +135,7 @@ func (n *Network) createRouter(id uint16, cost int, log *log.Logger) *Router {
         table: table,
         PacketChan: make(chan []byte, 50000),
         UpdateChan: make(chan routingTable, 100),
-        log: log,
+        log: l,
     }
     go r.routerThread()
 

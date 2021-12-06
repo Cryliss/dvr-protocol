@@ -52,9 +52,13 @@ func (a *Application) WaitForInput() error {
     // Variable to store our scanned input into
     var userInput string
 
+    i := 0
     for {
-        // Prompt the user for a command
-        a.Log.OutApp("\nPlease enter a command: ")
+        if i > 0 {
+            // Prompt the user for a command
+            a.Log.OutApp("\nPlease enter a command: ")
+        }
+        i++
 
         // Read user input and save into userInput variable
         userInput, _ = reader.ReadString('\n')
@@ -146,7 +150,7 @@ func (a *Application) help(inputArgs []string) error {
 
     // We only had printHelp in our input, so they want the full list
     a.printHelp("")
-    a.Log.OutApp("%s SUCCESS\n", command)
+    a.Log.OutApp("\n%s SUCCESS\n", command)
     return nil
 }
 
@@ -205,7 +209,7 @@ func (a *Application) update(inputArgs []string) error {
     if err := a.Server.Update(uint16(id1), uint16(id2), cost); err != nil {
         return errors.Wrapf(err, "%s ERROR: %v\n", command, err)
     }
-    a.Log.OutApp("%s SUCCESS\n", command)
+    a.Log.OutApp("\n%s SUCCESS\n", command)
     return nil
 }
 
@@ -216,7 +220,7 @@ func (a *Application) step() error {
     if err := a.Server.Step(); err != nil {
         return errors.Wrapf(err, "%s ERROR: %v\n", command, err)
     }
-    a.Log.OutApp("%s SUCCESS\n", command)
+    a.Log.OutApp("\n%s SUCCESS\n", command)
     return nil
 }
 
@@ -227,7 +231,7 @@ func (a *Application) packets() error {
     if err := a.Server.Packets(); err != nil {
         return errors.Wrapf(err, "%s ERROR: %v\n", command, err)
     }
-    a.Log.OutApp("%s SUCCESS\n", command)
+    a.Log.OutApp("\n%s SUCCESS\n", command)
     return nil
 }
 
@@ -238,7 +242,7 @@ func (a *Application) display() error {
     if err := a.Server.Display(); err != nil {
         return errors.Wrapf(err, "%s ERROR: %v\n", command, err)
     }
-    a.Log.OutApp("%s SUCCESS\n", command)
+    a.Log.OutApp("\n%s SUCCESS\n", command)
     return nil
 }
 
@@ -247,13 +251,13 @@ func (a *Application) disable(idString string) error {
     command := strings.ToUpper(a.Commands["6"])
     // Yes, so let's get the connection that we need to terminate
     // and attempt to disable it
-    id, _ := strconv.ParseInt(idString, 10, 64)
+    id, _ := strconv.Atoi(idString)
 
     // Call the servers disable function and check for any errors
     if err := a.Server.Disable(uint16(id)); err != nil {
         return errors.Wrapf(err, "%s ERROR: %v\n", command, err)
     }
-    a.Log.OutApp("%s SUCCESS\n", command)
+    a.Log.OutApp("\n%s SUCCESS\n", command)
     return nil
 }
 
@@ -262,6 +266,6 @@ func (a *Application) crash() error {
     command := strings.ToUpper(a.Commands["7"])
     // Call the servers crash function and print the success message
     a.Server.Crash()
-    a.Log.OutApp("%s SUCCESS\n", command)
+    a.Log.OutApp("\n%s SUCCESS\n", command)
     return nil
 }

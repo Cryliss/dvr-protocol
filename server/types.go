@@ -4,9 +4,12 @@ package server
 import (
 	"dvr/log"
 	"dvr/types"
+	"errors"
 	"net"
 	"sync"
 )
+
+var ByeErr error = errors.New("stopped checking for updates!")
 
 // type Server struct {{{
 

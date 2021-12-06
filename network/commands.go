@@ -12,8 +12,7 @@ func (r *Router) DisplayTable() {
 
     var i uint16 = 1
     for ; i <= uint16(NumServers); i++ {
-        //r.log.OutDebug("Table: %+v\n", r.table[i])
-        if r.table[i].linkCost == Inf || r.table[i].linkCost == 0 {
+        if r.table[i].linkCost == Inf || !r.table[i].active || r.table[i].linkCost == 0 {
             continue
         }
         r.log.OutServer("%d\t|\t%d\t| %d \n", r.table[i].ID, r.table[i].nextHop, r.table[i].linkCost)
@@ -27,10 +26,13 @@ func (r *Router) Update(id1, id2 uint16, newCost int) error {
     r.mu.Lock()
 
     id := r.ID
+    var rt routingTable
     if id1 == id || id2 == id {
         tableUp := make(map[uint16]tableUpdate, len(r.table))
         for id, server := range r.table {
             if id == id1 && id1 != id {
+                r.table[id].directCost = newCost
+                r.table[id].linkCost = newCost
                 t := tableUpdate{
                     ID: server.ID,
                     Cost: newCost,
@@ -39,6 +41,8 @@ func (r *Router) Update(id1, id2 uint16, newCost int) error {
                 continue
             }
             if id == id2 && id2 != id {
+                r.table[id].directCost = newCost
+                r.table[id].linkCost = newCost
                 t := tableUpdate{
                     ID: server.ID,
                     Cost: newCost,
@@ -53,13 +57,8 @@ func (r *Router) Update(id1, id2 uint16, newCost int) error {
             tableUp[id] = t
         }
 
-        rt := routingTable{
-            ID: id,
-            Table: tableUp,
-        }
-
-        go r.sendToNeighbors()
-        go r.UpdateTable(rt)
+        rt.ID = id
+        rt.Table = tableUp
     }
     r.mu.Unlock()
 
@@ -85,6 +84,10 @@ func (r *Router) Update(id1, id2 uint16, newCost int) error {
         }
     }
 
+    if rt.Table != nil {
+        go r.UpdateTable(rt)
+    }
+
     return nil
 }
 
@@ -94,11 +97,11 @@ func (r *Router) Disable(id uint16) error {
     defer r.mu.Unlock()
 
     if id == r.ID {
-        return errors.Wrapf(nil, "r.Disable: failed to disable link, cannot disable link to self")
+        return errors.Wrapf(DisSErr, "r.Disable: failed to disable link")
     }
 
     if r.table[id].directCost == Inf {
-        return errors.Wrapf(nil, "r.Disable: failed to disable link, cannot disable a non neighbor link")
+        return errors.Wrapf(DisErr, "r.Disable: failed to disable link")
     }
 
     r.table[id].directCost = Inf
@@ -106,6 +109,22 @@ func (r *Router) Disable(id uint16) error {
 
     tableUp := make(map[uint16]tableUpdate, len(r.table))
     for _, server := range r.table {
+        if server.nextHop == id {
+            t := tableUpdate{
+                ID: server.ID,
+                Cost: server.directCost,
+            }
+            tableUp[id] = t
+            continue
+        }
+        if server.ID == id {
+            t := tableUpdate{
+                ID: server.ID,
+                Cost: Inf,
+            }
+            tableUp[id] = t
+            continue
+        }
         t := tableUpdate{
             ID: server.ID,
             Cost: server.linkCost,
@@ -117,8 +136,7 @@ func (r *Router) Disable(id uint16) error {
         ID: r.ID,
         Table: tableUp,
     }
-
-    go r.sendToNeighbors()
     go r.UpdateTable(rt)
+
     return nil
 }

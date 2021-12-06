@@ -61,11 +61,11 @@ func (s *Server) Loopy(updateInterval int) error {
 
 			if err := s.router.CheckUpdates(interval); err != nil {
 				s.log.OutError("s.Loopy: error while checking updates - %s", err.Error())
+				s.log.OutApp("\nPlease enter a command: ")
 			}
 		case _, ok := <-s.bye:
 			if !ok {
-				e := errors.New("\ns.Loopy: our bye channel was closed! The server must have crashed")
-				return e
+				return errors.Wrapf(ByeErr, "\ns.Loopy: our bye channel was closed! The server must have crashed")
 			}
 		}
 	}
@@ -80,7 +80,7 @@ func (s *Server) Update(id1, id2 uint16, newCost int) error {
 func (s *Server) Step() error {
 	// Send the update messages
 	if err := s.router.SendPacketUpdates(); err != nil {
-		return errors.Errorf("s.Step: failed to send packet update: %+v", err)
+		return errors.Wrapf(err, "s.Step: failed to send packet update")
 	}
 
 	return nil

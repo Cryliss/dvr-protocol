@@ -18,9 +18,6 @@ func (r *Router) packetThread() {
         select {
         case packet := <- r.PacketChan:
             r.newPacket(packet)
-            if r.log.Debug {
-                r.DisplayTable()
-            }
         }
     }
 }
@@ -51,16 +48,17 @@ func (r *Router) UpdateTable(rt routingTable) {
             // If our cost is larger than the incoming cost, update our table.
             if r.table[destination].linkCost > cost && cost > 0 {
                 r.table[destination].linkCost = cost
+                if _, ok := r.table[senderID]; ok {
+                    if r.table[senderID].nextHop != 0 && r.table[senderID].nextHop != destination {
+                        r.table[destination].nextHop = r.table[senderID].nextHop
+                        updated = true 
+                        continue
+                    }
+                }
                 r.table[destination].nextHop = senderID
+
                 updated = true
             }
-        } else {
-            newn := neighbor{
-                linkCost: n.Cost,
-                ID: senderID,
-            }
-            r.table[destination] = &newn
-            updated = true
         }
     }
 

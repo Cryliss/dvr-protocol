@@ -22,6 +22,20 @@ func (r *Router) newPacket(packet []byte) {
     senderPort := fmt.Sprintf("%d", msg.Port)
     senderID := r.GetNeighborID(senderPort)
 
+    if senderID == r.ID {
+        return
+    }
+
+    r.mu.Lock()
+    updated := r.table[senderID].updated
+    r.mu.Unlock()
+
+    now := time.Now()
+    oneSecAgo := now.Add(-1*time.Second)
+    if updated.After(oneSecAgo) {
+        return
+    }
+
     // Let the user know we just got a new packet
     r.log.OutServer("\nRECEIVED A MESSAGE FROM SERVER %d\n", senderID)
     r.log.OutApp("\nPlease enter a command: ")
@@ -35,6 +49,9 @@ func (r *Router) newPacket(packet []byte) {
     defer r.mu.Unlock()
 
     r.table[senderID].updated = time.Now()
+    if !r.table[senderID].active {
+        r.table[senderID].active = true
+    }
 
     tableUp := make(map[uint16]tableUpdate, len(r.table))
     // Loop through each of our message neighbors and update the routing table
@@ -45,6 +62,12 @@ func (r *Router) newPacket(packet []byte) {
             Cost: int(n.Cost),
         }
         tableUp[n.ID] = t
+
+        if t.ID == r.ID {
+            if r.table[senderID].linkCost != t.Cost {
+                r.table[senderID].linkCost = t.Cost
+            }
+        }
 	}
 
     upd := routingTable{
@@ -52,14 +75,17 @@ func (r *Router) newPacket(packet []byte) {
         Table: tableUp,
     }
 
-    r.UpdateChan <- upd
+    channels := r.network.Channels
+
+    for _, c := range channels {
+        c <- upd
+    }
 }
 
 // CheckUpdates checks the routers neighbors and see if they've been updated
 // within 3 update intervals & disables them if not
 func (r *Router) CheckUpdates(interval time.Duration) error {
     r.mu.Lock()
-    defer r.mu.Unlock()
 
     // Check to see if we've gotten an update within the last 3
     // update intervals for each neighbor
@@ -72,13 +98,13 @@ func (r *Router) CheckUpdates(interval time.Duration) error {
         }
 
         if server.updated.Before(threeUpdates) {
+            r.table[server.ID].active = false
             r.log.OutError("\nr.CheckUpdates: Haven't received an update from server (%d) in 3 intervals, disabling the link.\n", server.ID)
             r.log.OutApp("\nPlease enter a command: ")
-            if err := r.Disable(server.ID); err != nil {
-                return err
-            }
+            go r.Disable(server.ID)
         }
     }
+    r.mu.Unlock()
     return nil
 }
 
@@ -95,8 +121,8 @@ func (r *Router) SendPacketUpdates() error {
     for id, server := range r.table {
         if server.linkCost != Inf && server.linkCost != 0 {
             bindy := r.table[id].bindy
-            if server.nextHop != server.ID {
-                bindy = r.table[server.nextHop].bindy
+            if server.directCost == Inf {
+                continue
             }
 
             // Create a new client connection and send the packet
@@ -117,22 +143,18 @@ func (r *Router) SendPacket(packet []byte, src, dst uint16) error {
     defer r.mu.Unlock()
 
     if r.ID == dst {
-        return errors.Wrapf(nil, "r.SendPacket: failed to send packet - cannot send packet to yourself!")
+        return errors.Wrapf(SendErr, "r.SendPacket: failed to send packet")
     }
 
     server := r.table[dst]
-
+    bindy := server.bindy
     if server.directCost == Inf {
-        nh := r.table[dst].nextHop
-        bindy := r.table[nh].bindy
-        r.forwardPacket(packet, bindy, nh)
-        return nil
+        bindy = r.table[server.nextHop].bindy
     }
 
     // Create a new client connection and send the packet
-    c, err := client.NewClient(server.bindy)
+    c, err := client.NewClient(bindy)
     if err != nil {
-        r.Disable(server.ID)
         return errors.Wrapf(err, "r.SendPacket: failed to send packet to neighbor %d", server.ID)
     }
 
@@ -144,7 +166,6 @@ func (r *Router) SendPacket(packet []byte, src, dst uint16) error {
 // preparePacket prepares an update packet
 func (r *Router) preparePacket() ([]byte, error) {
     r.mu.Lock()
-    defer r.mu.Unlock()
 
     neighbors := r.table
     numUpdates := len(neighbors)
@@ -155,6 +176,7 @@ func (r *Router) preparePacket() ([]byte, error) {
         Port:    uint16(neighbors[r.ID].port),
         IP:      neighbors[r.ID].IP,
     }
+    r.mu.Unlock()
 
     // Create a new map for our update message neighbors to go into
     var un map[uint16]*message.Neighbor
@@ -268,27 +290,28 @@ func (r *Router) checkForwarding(senderID uint16, packet []byte) bool {
     router := r.network.Routers[senderID]
     r.network.mu.Unlock()
 
-    router.mu.RLock()
+    router.mu.Lock()
     for dest, server := range router.table {
         server.mu.Lock()
         r.log.OutDebug("sender: %d | server: %d | nextHop: %d | dest: %d\n", senderID, server.ID, server.nextHop, dest)
+        if server.nextHop == r.ID && server.ID != r.ID {
+            if r.table[server.ID].directCost != Inf {
+                forwarded := server.forwarded
 
-        if server.nextHop == r.ID {
-            forwarded := server.forwarded
+                now := time.Now()
+                tenSecAgo := now.Add(-10*time.Second)
+                if forwarded.Before(tenSecAgo) {
+                    r.table[server.ID].forwarded = time.Now()
 
-            now := time.Now()
-            tenSecAgo := now.Add(-10*time.Second)
-            if forwarded.Before(tenSecAgo) {
-                server.forwarded = time.Now()
-
-                r.log.OutDebug("\nFORWARDING PACKET FROM %d TO %d\n", senderID, dest)
-                r.forwardPacket(packet, r.table[dest].bindy, dest)
+                    //r.log.OutDebug("\nFORWARDING PACKET FROM %d TO %d\n", senderID, dest)
+                    r.forwardPacket(packet, r.table[dest].bindy, dest)
+                }
             }
         }
         server.mu.Unlock()
     }
-    router.mu.RUnlock()
-
+    router.mu.Unlock()
+    r.log.OutApp("\nPlease enter a command: ")
     return forwarded
 }
 

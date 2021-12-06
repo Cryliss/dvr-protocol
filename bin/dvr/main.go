@@ -26,7 +26,7 @@ func checkFlags() {
     // Lets load our flags.
     flag.StringVar(&file, "t", "", "Topology file name.")
     flag.IntVar(&interval, "i", -1, "Routing update interval, in seconds.")
-    flag.BoolVar(&debug, "d", true, "Whether or not to show routing tables for debugging.")
+    flag.BoolVar(&debug, "d", false, "Whether or not to show routing tables for debugging.")
     flag.Parse()
 
     // Did we get a file name or interval to update?
@@ -48,15 +48,15 @@ func main() {
     a.Log.Debug = debug
     a.StartupText()
 
-    a.Log.OutDebug("Parsing topology file .. \n")
+    //a.Log.OutDebug("Parsing topology file .. \n")
 
     top, serverID, err := topology.ParseTopology(file)
     if err != nil {
         fmt.Printf("Failed to parse topology file - %s\n", err.Error())
         os.Exit(-1)
     }
-    a.Log.OutDebug("Successfully parsed topology file.\nStarting network setup now ..\n")
-    a.Server = network.New(top, serverID, debug)
+    //a.Log.OutDebug("Successfully parsed topology file.\nStarting network setup now ..\n")
+    a.Server = network.New(top, serverID, a.Log)
 
     go a.Server.Listen()
     go a.Server.Loopy(interval)

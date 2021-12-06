@@ -66,7 +66,8 @@ func (s *Server) Listen() error {
 	select {
 	case err = <-errChan:
 		if err != nil {
-			s.log.OutError("\ns.Listen: error reading packet := %+v\n\nPlease enter a command: ", err)
+			s.log.OutError("\ns.Listen: error reading packet := %+v\n", err)
+			s.log.OutApp("\nPlease enter a command: ")
 		}
 	case _, ok := <-s.bye:
 		if !ok {
