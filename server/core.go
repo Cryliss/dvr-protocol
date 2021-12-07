@@ -16,6 +16,7 @@ import (
 func New(packetChan chan []byte, id uint16, bindy string, router types.Router, l *log.Logger) *Server {
 	s := Server{
 		ID:  id,
+		active: true,
 		bindy: bindy,
 		log: l,
         bye: make(chan struct{}, 0),
@@ -60,11 +61,13 @@ func (s *Server) Loopy(updateInterval int) error {
 			s.log.OutApp("\nPlease enter a command: ")
 
 			if err := s.router.CheckUpdates(interval); err != nil {
-				s.log.OutError("s.Loopy: error while checking updates - %s", err.Error())
+				s.log.OutError("\ns.Loopy: error while checking updates - %s", err.Error())
 				s.log.OutApp("\nPlease enter a command: ")
 			}
 		case _, ok := <-s.bye:
 			if !ok {
+				s.log.OutError("\ns.Loopy: bye channel was closed - stopping loopy goroutine")
+				s.log.OutApp("\nPlease enter a command: ")
 				return errors.Wrapf(ByeErr, "\ns.Loopy: our bye channel was closed! The server must have crashed")
 			}
 		}
@@ -78,6 +81,9 @@ func (s *Server) Update(id1, id2 uint16, newCost int) error {
 
 // Step sends the routing update immediately, instead of waiting for the update interval
 func (s *Server) Step() error {
+	if !s.active {
+		return errors.Wrapf(StepErr, "s.Step: failed to send packet update")
+	}
 	// Send the update messages
 	if err := s.router.SendPacketUpdates(); err != nil {
 		return errors.Wrapf(err, "s.Step: failed to send packet update")
@@ -113,8 +119,11 @@ func (s *Server) Disable(id uint16) error {
 func (s *Server) Crash() error {
 	s.log.OutServer("Crashing server now .. bye!\n")
 	s.mu.Lock()
-	// Closing s.bye will cause the s.Listen and the s.Loopy goroutines to stop
-	close(s.bye)
+	if s.active {
+		// Closing s.bye will cause the s.Listen and the s.Loopy goroutines to stop
+		close(s.bye)
+		s.active = false
+	}
 	s.mu.Unlock()
 	return nil
 }

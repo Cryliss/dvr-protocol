@@ -7,18 +7,18 @@ func (r *Router) DisplayTable() {
     r.mu.Lock()
     defer r.mu.Unlock()
 
-    r.log.OutServer("\n dst id |  next hop id  | link cost\n")
-    r.log.OutServer("--------+---------------+-----------\n")
+    r.log.OutServer("\ndst | next hop | cost\n")
+    r.log.OutServer("----+----------+-------\n")
 
     var i uint16 = 1
     for ; i <= uint16(NumServers); i++ {
-        if r.table[i].linkCost == Inf || !r.table[i].active || r.table[i].linkCost == 0 {
+        if r.table[i].linkCost == Inf || r.table[i].linkCost == 0 || r.table[i].nextHop == 0 {
             continue
         }
-        r.log.OutServer("%d\t|\t%d\t| %d \n", r.table[i].ID, r.table[i].nextHop, r.table[i].linkCost)
+        r.log.OutServer(" %d  |\t  %d    |  %d\n", r.table[i].ID, r.table[i].nextHop, r.table[i].linkCost)
     }
 
-    r.log.OutApp("\nPlease enter a command: ")
+    //r.log.OutApp("\nPlease enter a command: ")
 }
 
 // Update updates the link cost between to servers
@@ -104,12 +104,22 @@ func (r *Router) Disable(id uint16) error {
         return errors.Wrapf(DisErr, "r.Disable: failed to disable link")
     }
 
+    if r.table[id].directCost != r.table[id].linkCost {
+        n := r.table[id].nextHop
+        if n != id {
+            r.table[n].linkCost = r.table[n].directCost
+            r.table[n].nextHop = n
+        }
+    }
+
     r.table[id].directCost = Inf
     r.table[id].linkCost = Inf
 
     tableUp := make(map[uint16]tableUpdate, len(r.table))
-    for _, server := range r.table {
+    for i, server := range r.table {
         if server.nextHop == id {
+            r.table[i].linkCost = r.table[i].directCost
+            r.table[i].nextHop = i
             t := tableUpdate{
                 ID: server.ID,
                 Cost: server.directCost,
@@ -118,6 +128,9 @@ func (r *Router) Disable(id uint16) error {
             continue
         }
         if server.ID == id {
+            r.table[i].directCost = Inf
+            r.table[i].linkCost = Inf
+            r.table[i].nextHop = uint16(Inf)
             t := tableUpdate{
                 ID: server.ID,
                 Cost: Inf,
@@ -125,9 +138,11 @@ func (r *Router) Disable(id uint16) error {
             tableUp[id] = t
             continue
         }
+        r.table[i].linkCost = r.table[i].directCost
+        r.table[i].nextHop = i
         t := tableUpdate{
             ID: server.ID,
-            Cost: server.linkCost,
+            Cost: server.directCost,
         }
         tableUp[id] = t
     }
@@ -136,7 +151,7 @@ func (r *Router) Disable(id uint16) error {
         ID: r.ID,
         Table: tableUp,
     }
-    go r.UpdateTable(rt)
+    r.UpdateChan <- rt
 
     return nil
 }

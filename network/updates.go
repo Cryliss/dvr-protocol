@@ -28,6 +28,9 @@ func (r *Router) newPacket(packet []byte) {
 
     r.mu.Lock()
     updated := r.table[senderID].updated
+    if !r.table[senderID].active {
+        r.table[senderID].active = true
+    }
     r.mu.Unlock()
 
     now := time.Now()
@@ -49,9 +52,7 @@ func (r *Router) newPacket(packet []byte) {
     defer r.mu.Unlock()
 
     r.table[senderID].updated = time.Now()
-    if !r.table[senderID].active {
-        r.table[senderID].active = true
-    }
+
 
     tableUp := make(map[uint16]tableUpdate, len(r.table))
     // Loop through each of our message neighbors and update the routing table
@@ -65,6 +66,9 @@ func (r *Router) newPacket(packet []byte) {
 
         if t.ID == r.ID {
             if r.table[senderID].linkCost != t.Cost {
+                if t.Cost == r.table[senderID].directCost {
+                    r.table[senderID].nextHop = senderID
+                }
                 r.table[senderID].linkCost = t.Cost
             }
         }
@@ -97,7 +101,7 @@ func (r *Router) CheckUpdates(interval time.Duration) error {
             continue
         }
 
-        if server.updated.Before(threeUpdates) {
+        if server.updated.Before(threeUpdates) && r.table[server.ID].active {
             r.table[server.ID].active = false
             r.log.OutError("\nr.CheckUpdates: Haven't received an update from server (%d) in 3 intervals, disabling the link.\n", server.ID)
             r.log.OutApp("\nPlease enter a command: ")
@@ -293,19 +297,17 @@ func (r *Router) checkForwarding(senderID uint16, packet []byte) bool {
     router.mu.Lock()
     for dest, server := range router.table {
         server.mu.Lock()
-        r.log.OutDebug("sender: %d | server: %d | nextHop: %d | dest: %d\n", senderID, server.ID, server.nextHop, dest)
+        //r.log.OutDebug("sender: %d | nextHop: %d | dest: %d\n", senderID, server.nextHop, dest)
         if server.nextHop == r.ID && server.ID != r.ID {
-            if r.table[server.ID].directCost != Inf {
-                forwarded := server.forwarded
+            forwarded := server.forwarded
 
-                now := time.Now()
-                tenSecAgo := now.Add(-10*time.Second)
-                if forwarded.Before(tenSecAgo) {
-                    r.table[server.ID].forwarded = time.Now()
+            now := time.Now()
+            tenSecAgo := now.Add(-10*time.Second)
+            if forwarded.Before(tenSecAgo) {
+                r.table[server.ID].forwarded = time.Now()
 
-                    //r.log.OutDebug("\nFORWARDING PACKET FROM %d TO %d\n", senderID, dest)
-                    r.forwardPacket(packet, r.table[dest].bindy, dest)
-                }
+                //r.log.OutDebug("\nFORWARDING PACKET FROM %d TO %d\n", senderID, dest)
+                r.forwardPacket(packet, r.table[dest].bindy, dest)
             }
         }
         server.mu.Unlock()

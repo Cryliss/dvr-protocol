@@ -25,9 +25,6 @@ func (a *Application) StartupText() {
     sText := `
 DVR: Distance Vector Routing Server
 --------------------------------------
-A simplified version of the distance vector routing protocol.
-By Sabra Bilodeau
-
 Available commands:
     1. help
     2. update <server-ID1> <server-ID2> <new-link-cost>
@@ -37,8 +34,8 @@ Available commands:
     6. disable <server-id>
     7. crash
 
-You may either type the command name, i.e. 'disable <server-id>', or the command number, i.e. '2 <server-id>'
-Type 'help' for an explanation of each command or type 'help <command>' to get the explanation for a specific command.
+Type 'help' or 'help <command>' to get the explanation
+for the commands.
 `
     a.Log.OutApp("%s", sText)
 }
@@ -68,6 +65,9 @@ func (a *Application) WaitForInput() error {
         // If the request resulted in an error, let's let the user know
         err := a.parseInput(userInput)
         if err != nil {
+            if err == ExitErr {
+                return err
+            }
             a.Log.OutError("%v\n", err)
         }
     }
@@ -121,6 +121,12 @@ func (a *Application) parseInput(userInput string) error {
         fallthrough
     case a.Commands["7"]:
         return a.crash()
+    case "8":
+        fallthrough
+    case a.Commands["7"]:
+        a.Log.OutApp("Shutting down server .. \n")
+        a.Server.Crash()
+        return ExitErr
     default:
         // We didn't find a matching command for their input, let's throw an error
         return ErrInp

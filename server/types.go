@@ -9,7 +9,8 @@ import (
 	"sync"
 )
 
-var ByeErr error = errors.New("stopped checking for updates!")
+var StepErr error = errors.New("the server crashed")
+var ByeErr error = errors.New("stopped checking for updates")
 
 // type Server struct {{{
 
@@ -39,6 +40,8 @@ type Server struct {
 	// Channel that will inform us if we need to stop sending update
 	// messages or not
 	bye chan struct{}
+
+	active bool 
 
 	// Channel that we'll send incoming packets on
 	packetChan chan []byte

@@ -42,7 +42,7 @@ func (n *Network) parseTopology(top *topology.Topology, sid uint16, l *log.Logge
                 port: server.Port,
                 bindy: server.Bindy,
 
-                active: false,
+                active: true,
                 nextHop: uint16(0),
                 directCost: 0,
                 linkCost: 0,

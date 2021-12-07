@@ -8,6 +8,7 @@ import (
     "flag"
     "fmt"
     "os"
+    "time"
 )
 
 var file string
@@ -70,8 +71,9 @@ func main() {
     for {
         err := a.WaitForInput()
         if err != nil {
-            a.Log.OutError("ERROR: %v\nExiting application now\n", err)
-            os.Exit(-1)
+            time.Sleep(5*time.Millisecond)
+            a.Log.OutApp("\nExiting application now\n")
+            os.Exit(0)
         }
     }
 }

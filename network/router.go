@@ -37,9 +37,10 @@ func (r *Router) UpdateTable(rt routingTable) {
     }
 
     for destination, n := range rt.Table {
+        //r.log.OutDebug("\ndest=%d|n.ID=%d|rt.ID=%d|r.ID=%d", destination, n.ID, rt.ID, r.ID)
         _, ok := r.table[destination]
 
-        if destination == senderID || destination == r.ID {
+        if senderID == destination {
             continue
         }
 
@@ -48,15 +49,29 @@ func (r *Router) UpdateTable(rt routingTable) {
             // If our cost is larger than the incoming cost, update our table.
             if r.table[destination].linkCost > cost && cost > 0 {
                 r.table[destination].linkCost = cost
+                if r.table[destination].linkCost > 12 {
+                    r.table[destination].linkCost = Inf
+                    r.table[destination].directCost = Inf
+                    updated = true
+                    continue
+                }
+
                 if _, ok := r.table[senderID]; ok {
-                    if r.table[senderID].nextHop != 0 && r.table[senderID].nextHop != destination {
-                        r.table[destination].nextHop = r.table[senderID].nextHop
-                        updated = true 
+                    //r.log.OutDebug("senderID: %d | sender.nexthop: %d | n.ID: %d | destination: %d | destination.nexthop: %d | r.ID: %d | rt.ID: %d\n", senderID, r.table[senderID].nextHop, n.ID, destination, r.table[destination].nextHop, r.ID, rt.ID)
+                    if r.ID == rt.ID {
+                        r.table[destination].nextHop = destination
+                        //r.log.OutDebug("using destination value\n")
+                        updated = true
+                        continue
+                    }
+                    if r.table[senderID].nextHop == r.table[destination].nextHop  {
+                        //r.log.OutDebug("using destination valu2e\n")
+                        r.table[destination].nextHop = destination
+                        updated = true
                         continue
                     }
                 }
                 r.table[destination].nextHop = senderID
-
                 updated = true
             }
         }
