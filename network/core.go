@@ -23,6 +23,8 @@ func New(top *topology.Topology, sid uint16, l *log.Logger) *server.Server {
     return s
 }
 
+// parseTopology will parse the topology configuration and create
+// the necessary routers and server
 func (n *Network) parseTopology(top *topology.Topology, sid uint16, l *log.Logger) *server.Server {
     var routers map[uint16]*Router
     routers = make(map[uint16]*Router, NumServers)
@@ -96,6 +98,8 @@ func (n *Network) parseTopology(top *topology.Topology, sid uint16, l *log.Logge
     return server
 }
 
+// createRouter creates a new router that will be used to
+// keep track of the other servers routing tables
 func (n *Network) createRouter(id uint16, cost int, l *log.Logger) *Router {
     var table map[uint16]*neighbor
     table = make(map[uint16]*neighbor, NumServers)

@@ -22,17 +22,22 @@ func (r *Router) newPacket(packet []byte) {
     senderPort := fmt.Sprintf("%d", msg.Port)
     senderID := r.GetNeighborID(senderPort)
 
+    // I was occasionally sending to myself, somehow?
     if senderID == r.ID {
         return
     }
 
     r.mu.Lock()
+    // Get the last time this sender was updated &
+    // set this sender to be active, since we received a
+    // message from them
     updated := r.table[senderID].updated
     if !r.table[senderID].active {
         r.table[senderID].active = true
     }
     r.mu.Unlock()
 
+    // Ensure we didn't *JUST* get sent this packet
     now := time.Now()
     oneSecAgo := now.Add(-1*time.Second)
     if updated.After(oneSecAgo) {
@@ -43,6 +48,7 @@ func (r *Router) newPacket(packet []byte) {
     r.log.OutServer("\nRECEIVED A MESSAGE FROM SERVER %d\n", senderID)
     r.log.OutApp("\nPlease enter a command: ")
 
+    // Check if we need to forward the packet to someone else
     if r.checkForwarding(senderID, packet) {
         r.log.OutServer("\nSUCCESSFULLY FORWARDED MESSAGE\n")
         r.log.OutApp("\nPlease enter a command: ")
@@ -51,8 +57,8 @@ func (r *Router) newPacket(packet []byte) {
     r.mu.Lock()
     defer r.mu.Unlock()
 
+    // Set the updated time for the server
     r.table[senderID].updated = time.Now()
-
 
     tableUp := make(map[uint16]tableUpdate, len(r.table))
     // Loop through each of our message neighbors and update the routing table
@@ -80,7 +86,8 @@ func (r *Router) newPacket(packet []byte) {
     }
 
     channels := r.network.Channels
-
+    // We'll send the update to *all* channels in the network,
+    // including our own router
     for _, c := range channels {
         c <- upd
     }
@@ -100,7 +107,6 @@ func (r *Router) CheckUpdates(interval time.Duration) error {
         if server.ID == r.ID {
             continue
         }
-
         if server.updated.Before(threeUpdates) && r.table[server.ID].active {
             r.table[server.ID].active = false
             r.log.OutError("\nr.CheckUpdates: Haven't received an update from server (%d) in 3 intervals, disabling the link.\n", server.ID)
@@ -125,7 +131,10 @@ func (r *Router) SendPacketUpdates() error {
     for id, server := range r.table {
         if server.linkCost != Inf && server.linkCost != 0 {
             bindy := r.table[id].bindy
-            if server.directCost == Inf {
+
+            // Make sure we don't send packets we're not directly linked
+            // to, or to ourself
+            if server.directCost == Inf || server.directCost == 0 {
                 continue
             }
 
@@ -152,7 +161,10 @@ func (r *Router) SendPacket(packet []byte, src, dst uint16) error {
 
     server := r.table[dst]
     bindy := server.bindy
+
+    // Is our direct cost to the destination inf?
     if server.directCost == Inf {
+        // Get the nexthop server's bind address then
         bindy = r.table[server.nextHop].bindy
     }
 
@@ -290,30 +302,33 @@ func (r *Router) checkForwarding(senderID uint16, packet []byte) bool {
     defer r.mu.Unlock()
 
     forwarded := false
+
     r.network.mu.Lock()
+    // Get the router for this sender from the network
     router := r.network.Routers[senderID]
     r.network.mu.Unlock()
 
     router.mu.Lock()
     for dest, server := range router.table {
         server.mu.Lock()
-        //r.log.OutDebug("sender: %d | nextHop: %d | dest: %d\n", senderID, server.nextHop, dest)
+
+        // Is the nextHop our router & we're not the destination?
         if server.nextHop == r.ID && server.ID != r.ID {
             forwarded := server.forwarded
 
+            // Make sure we haven't *JUST* forwarded a packet to this server
             now := time.Now()
             tenSecAgo := now.Add(-10*time.Second)
             if forwarded.Before(tenSecAgo) {
                 r.table[server.ID].forwarded = time.Now()
-
-                //r.log.OutDebug("\nFORWARDING PACKET FROM %d TO %d\n", senderID, dest)
                 r.forwardPacket(packet, r.table[dest].bindy, dest)
+                //r.log.OutDebug("\nFORWARDED PACKET FROM %d TO %d\n", senderID, dest)
             }
         }
         server.mu.Unlock()
     }
     router.mu.Unlock()
-    r.log.OutApp("\nPlease enter a command: ")
+    
     return forwarded
 }
 

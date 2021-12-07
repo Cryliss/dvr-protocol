@@ -49,23 +49,26 @@ func (r *Router) UpdateTable(rt routingTable) {
             // If our cost is larger than the incoming cost, update our table.
             if r.table[destination].linkCost > cost && cost > 0 {
                 r.table[destination].linkCost = cost
+
+                // Is our linkCost is larger than 12, then we likely
+                // have some sort of route poisoning .. this attempts to
+                // solve that .. unsure if it does so successfully
                 if r.table[destination].linkCost > 12 {
                     r.table[destination].linkCost = Inf
                     r.table[destination].directCost = Inf
                     updated = true
                     continue
                 }
-
+                // Now we'll determine the routers next hop value
                 if _, ok := r.table[senderID]; ok {
-                    //r.log.OutDebug("senderID: %d | sender.nexthop: %d | n.ID: %d | destination: %d | destination.nexthop: %d | r.ID: %d | rt.ID: %d\n", senderID, r.table[senderID].nextHop, n.ID, destination, r.table[destination].nextHop, r.ID, rt.ID)
+                    // Is the router's ID the same as the router this
+                    // table came from?
                     if r.ID == rt.ID {
                         r.table[destination].nextHop = destination
-                        //r.log.OutDebug("using destination value\n")
                         updated = true
                         continue
                     }
                     if r.table[senderID].nextHop == r.table[destination].nextHop  {
-                        //r.log.OutDebug("using destination valu2e\n")
                         r.table[destination].nextHop = destination
                         updated = true
                         continue
@@ -82,8 +85,8 @@ func (r *Router) UpdateTable(rt routingTable) {
     }
 }
 
-// sendToNeighbors sends routing table updates to the neighboring routers
-// in the network
+// sendToNeighbors sends routing table updates to the neighboring
+// routers in the network
 func (r *Router) sendToNeighbors() {
     r.mu.Lock()
     defer r.mu.Unlock()
@@ -102,13 +105,14 @@ func (r *Router) sendToNeighbors() {
         Table: tableUp,
     }
 
+    // Get the router update channels from the network
     channels := r.network.Channels
-
     for id, c := range channels {
         if id == r.ID {
             continue
         }
 
+        // Send the routing table to the update channel 
         c <- rt
     }
 }

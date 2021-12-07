@@ -14,5 +14,4 @@ type Server struct {
     Bindy string
     IP string
     Port int
-    Neighbor bool
 }

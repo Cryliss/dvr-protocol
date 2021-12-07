@@ -40,7 +40,6 @@ for the commands.
     a.Log.OutApp("%s", sText)
 }
 
-
 // WaitForInput waits for user input and handles parsing it once received.
 func (a *Application) WaitForInput() error {
     // Create a new bufio reader to read user input from the command line
@@ -61,6 +60,8 @@ func (a *Application) WaitForInput() error {
         // If the request resulted in an error, let's let the user know
         err := a.parseInput(userInput)
         if err != nil {
+            // Usually, if we see an error, we just want to output it
+            // and keep looping, *unless* its an exit error
             if err == ExitErr {
                 return err
             }
@@ -119,7 +120,7 @@ func (a *Application) parseInput(userInput string) error {
         return a.crash()
     case "8":
         fallthrough
-    case a.Commands["7"]:
+    case a.Commands["8"]:
         a.Log.OutApp("Shutting down server .. \n")
         a.Server.Crash()
         return ExitErr

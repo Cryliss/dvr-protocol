@@ -95,7 +95,6 @@ func ParseTopology(file string) (*Topology, uint16, error) {
                 Port:  port,
                 Bindy: ip + ":" + portS,
                 Cost:  inf,
-                Neighbor: false,
             }
 
             t.Servers[tid] = &n
@@ -131,7 +130,6 @@ func ParseTopology(file string) (*Topology, uint16, error) {
 
             if _, ok := t.Servers[id2]; ok {
                 t.Servers[id2].Cost = cost
-                t.Servers[id2].Neighbor = true
             }
             line++
             break
@@ -157,7 +155,6 @@ func ParseTopology(file string) (*Topology, uint16, error) {
 
             if _, ok := t.Servers[id]; ok {
                 t.Servers[id].Cost = cost
-                t.Servers[id].Neighbor = true
             }
 
             line++
