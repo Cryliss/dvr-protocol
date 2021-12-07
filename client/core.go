@@ -23,8 +23,7 @@ func NewClient(address string) (*Client, error) {
 	//
 	// We're using a timeout so we don't completely break the program
 	// if we never get a new connection
-	duraton := "10s"
-	timeout, _ := time.ParseDuration(duraton)
+	timeout, _ := time.ParseDuration("5s")
 	dialer := net.Dialer{Timeout: timeout}
 
 	// Dial the connection adddress to establish the connection.

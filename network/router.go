@@ -29,6 +29,7 @@ func (r *Router) UpdateTable(rt routingTable) {
 
     var updated bool
 
+    // Determine who the sender of the packet is
     var senderID uint16
     for dest, n := range rt.Table {
         if dest == n.ID && n.Cost == 0 {
@@ -37,7 +38,6 @@ func (r *Router) UpdateTable(rt routingTable) {
     }
 
     for destination, n := range rt.Table {
-        //r.log.OutDebug("\ndest=%d|n.ID=%d|rt.ID=%d|r.ID=%d", destination, n.ID, rt.ID, r.ID)
         _, ok := r.table[destination]
 
         if senderID == destination {

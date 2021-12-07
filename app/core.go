@@ -49,13 +49,9 @@ func (a *Application) WaitForInput() error {
     // Variable to store our scanned input into
     var userInput string
 
-    i := 0
     for {
-        if i > 0 {
-            // Prompt the user for a command
-            a.Log.OutApp("\nPlease enter a command: ")
-        }
-        i++
+        // Prompt the user for a command
+        a.Log.OutApp("\nPlease enter a command: ")
 
         // Read user input and save into userInput variable
         userInput, _ = reader.ReadString('\n')
